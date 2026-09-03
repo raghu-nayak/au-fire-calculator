@@ -74,7 +74,7 @@ indexed to inflation for every later year.
 | | |
 |---|---|
 | Income tax | Resident rate scale, Medicare levy with its low-income shade-in, LITO, and SAPTO from 67 |
-| Super in | SG at 12% up to the maximum contribution base, salary sacrifice, 15% contributions tax, Division 293 above $250,000, excess concessional contributions added back with a 15% offset |
+| Super in | SG at 12% up to the maximum contribution base, salary sacrifice as a fixed amount or as whatever fills the cap each year, 15% contributions tax, Division 293 above $250,000, excess concessional contributions added back with a 15% offset |
 | Super earnings | 15% while accumulating, nil once the balance supports a retirement-phase pension after 60 |
 | Super out | Preservation age 60, tax-free from a taxed source, minimum drawdown 4% rising to 14% by 95 |
 | Outside super | Distribution yield taxed as income each year and reinvested, refundable franking credits, capital growth untaxed until sold, then a 50% CGT discount at your marginal rate |
@@ -113,8 +113,10 @@ lifetime tax.
   drawn from your expected return and volatility, as a percentile fan plus a
   success rate. Fixed seed, so the same inputs always give the same fan.
 - **Every year of the plan** as a table, and the same detail as CSV.
-- **Fill the cap** — one button sets the salary sacrifice to the most you can add
-  without any year going over the concessional cap.
+- **Fill the cap** — a toggle that makes the salary sacrifice a standing
+  instruction instead of an amount, worked out again every year. Employer super
+  grows faster than the cap does, so the room left for a sacrifice shrinks as you
+  go: no single figure can fill the cap now and still fit in fifteen years.
 
 ## Things worth knowing
 
@@ -127,9 +129,14 @@ lifetime tax.
   expected returns and a simulated year still hands both the same deviation —
   one market, two allocations. Correlation is not a setting.
 - **The concessional cap warning watches every year, not just the first.** A
-  sacrifice sized against today's employer contributions can breach the cap a
-  decade later, because pay rises above inflation while the cap only follows
-  inflation. The chip names the year and the amount, in today's money.
+  fixed sacrifice sized against today's employer contributions can breach the cap
+  a decade later, because pay rises above inflation while the cap only follows
+  inflation. The chip names the year and the amount, in today's money. *Fill the
+  cap* avoids the problem rather than warning about it.
+- **Employer super alone is never in excess.** The maximum contribution base is
+  legislated as the concessional cap divided by the SG rate, so SG from one
+  employer tops out 40 cents under the cap. An excess can only come from a
+  sacrifice — or from a second employer, which is out of scope.
 - **The age pension figure is an estimate**, not an assessment. It counts your
   super and your outside-super portfolio as assessable assets, and nothing else
   — no car, no contents, no investment property.
