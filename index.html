@@ -1,0 +1,3119 @@
+<!doctype html>
+<html lang="en-AU" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Australian FIRE Calculator</title>
+<meta name="description" content="Work out when you can retire in Australia: super and outside super modelled separately, real ATO tax rates, the bridge from early retirement to preservation age 60, and an age pension estimate.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#272B2F">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2321252A'/%3E%3Cpath d='M5 25 L16 9 L27 22' fill='none' stroke='%23F6B72B' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%23F6B72B'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   Design tokens — shared with the investment growth calculator.
+   Palette lifted from mortgage.monster's MUI theme:
+     dark  primary #F6B72B  secondary #7FB09F  bg #272B2F / paper #21252A
+     light primary #176184  secondary #73AF9A  bg #F8F8F8 / paper #FFFFFF
+   Series colours are re-stepped from the same hue families so they clear
+   the OKLCH lightness band, chroma floor, CVD and contrast checks on both
+   chart surfaces (validated, not eyeballed). --ok / --danger are status
+   inks: both clear 4.5:1 on --card in their own theme, because a verdict
+   is body-size text.
+   ============================================================ */
+:root{
+  --r:3px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;
+  --dur:.18s;
+}
+html[data-theme="dark"]{
+  --bg:#272B2F; --card:#21252A; --sunken:#1B1F23; --raised:#2C3137;
+  --hair:#373D45; --grid:#31373E;
+  --ink:#FAFAFA; --ink-2:#BFC5CB; --ink-3:#8E959C;
+  --accent:#F6B72B; --accent-2:#E08301; --accent-ink:#21252A; --accent-soft:rgba(246,182,44,.16);
+  --sec:#7FB09F; --danger:#F7403A; --warn:#FF9800; --ok:#3FBF88;
+  --s1:#3788D5; --s2:#2DAB75; --s3:#C48001;
+  --muted-bar:#4A525B;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 28px rgba(0,0,0,.26);
+  --track:#31373E;
+}
+html[data-theme="light"]{
+  --bg:#F8F8F8; --card:#FFFFFF; --sunken:#F1F3F4; --raised:#FFFFFF;
+  --hair:#DFE3E6; --grid:#E9ECEE;
+  --ink:#333333; --ink-2:#545C63; --ink-3:#6E767D;
+  --accent:#176184; --accent-2:#C68712; --accent-ink:#FFFFFF; --accent-soft:rgba(23,97,132,.10);
+  --sec:#73AF9A; --danger:#C62828; --warn:#E08301; --ok:#0F7A52;
+  --s1:#0262AB; --s2:#039370; --s3:#C99005;
+  --muted-bar:#C3CAD0;
+  --shadow:0 1px 2px rgba(16,24,32,.05),0 8px 22px rgba(16,24,32,.07);
+  --track:#E4E8EB;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:12px;top:-48px;z-index:20;background:var(--accent);color:var(--accent-ink);padding:8px 14px;border-radius:var(--r);font-weight:700;transition:top var(--dur)}
+.skip:focus{top:12px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;
+  max-width:1400px;margin:0 auto;padding:22px 20px 16px;
+}
+.brand{display:flex;align-items:center;gap:12px;flex:1 1 320px;min-width:0}
+.brand svg{flex:none;width:38px;height:38px}
+h1{font-size:19px;font-weight:700;letter-spacing:-.35px;line-height:1.2}
+.sub{color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex:none}
+
+/* ---------- generic controls ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--raised);border:1px solid var(--hair);color:var(--ink-2);
+  border-radius:var(--r);padding:7px 11px;font-size:12.5px;font-weight:500;
+  cursor:pointer;transition:background var(--dur),border-color var(--dur),color var(--dur);
+  white-space:nowrap;
+}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.btn:active{transform:translateY(.5px)}
+.btn svg{width:14px;height:14px;flex:none}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn-primary:hover{background:var(--accent-2);border-color:var(--accent-2);color:var(--accent-ink)}
+.btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+select.sel{
+  background:var(--raised);border:1px solid var(--hair);border-radius:var(--r);
+  padding:7px 9px;font-size:12.5px;cursor:pointer;
+}
+select.sel:hover{border-color:var(--accent)}
+
+/* ---------- layout ---------- */
+.layout{
+  display:grid;grid-template-columns:minmax(286px,352px) minmax(0,1fr);
+  gap:18px;max-width:1400px;margin:0 auto;padding:0 20px 40px;align-items:start;
+}
+.panel{background:var(--card);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow);min-width:0}
+/* grid items must be allowed below their min-content, or the nowrap table
+   inflates the whole column and the page scrolls sideways */
+.layout > *,.results > *{min-width:0}
+@media (max-width:840px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .inputs{padding-bottom:18px}
+}
+
+/* ---------- inputs panel ---------- */
+.inputs{padding:4px 18px 18px}
+@media (min-width:841px){
+  .inputs{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;overscroll-behavior:contain}
+}
+fieldset{border:0;margin:0;padding:0}
+legend.grp{
+  display:block;width:100%;padding:16px 0 10px;margin:0;
+  font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink-3);
+}
+.field{padding:9px 0;border-top:1px solid var(--grid)}
+.field:first-of-type{border-top:0}
+.field-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.field-head label{font-size:13px;font-weight:500;color:var(--ink-2)}
+.num{
+  display:inline-flex;align-items:center;background:var(--sunken);
+  border:1px solid var(--hair);border-radius:var(--r);
+  transition:border-color var(--dur),box-shadow var(--dur);
+}
+.num:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.num .aff{padding:0 0 0 8px;color:var(--ink-3);font-size:12.5px;user-select:none}
+.num .aff.suf{padding:0 8px 0 0}
+.num input{
+  width:76px;border:0;background:none;padding:6px 6px;text-align:right;
+  font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;
+}
+.num input:focus{outline:none}
+.num.wide input{width:104px}
+.num.sm input{width:52px}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:22px;margin:6px 0 0;
+  background:none;cursor:pointer;display:block;
+}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--card);margin-top:-6px;
+  box-shadow:0 0 0 1px var(--accent);
+}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--accent-2);box-shadow:0 0 0 1px var(--accent-2),0 0 0 6px var(--accent-soft)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--track)}
+input[type=range]::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:var(--accent);
+  border:2px solid var(--card);box-shadow:0 0 0 1px var(--accent);
+}
+input[type=range]:disabled{cursor:not-allowed;opacity:.45}
+.ticks{display:flex;justify-content:space-between;color:var(--ink-3);font-size:10.5px;margin-top:-1px;font-variant-numeric:tabular-nums}
+.hint{color:var(--ink-3);font-size:11.5px;margin-top:5px}
+.hint b{color:var(--ink-2);font-weight:600}
+.hint.flag{color:var(--warn)}
+.row2{display:flex;gap:8px;margin-top:9px}
+.row2 > label{flex:1 1 0;min-width:0}
+.row3{display:flex;gap:8px;margin-top:9px}
+.row3 > label{flex:1 1 0;min-width:0}
+.lbl-sm{display:block;font-size:11px;color:var(--ink-3);margin-bottom:3px}
+.row2 select,.row3 select{width:100%}
+.row2 .num,.row3 .num{display:flex;width:100%}
+.row2 .num input,.row3 .num input{width:100%}
+.check{display:flex;align-items:flex-start;gap:9px;margin-top:11px;cursor:pointer}
+.check input{
+  appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:1px 0 0;
+  border:1.5px solid var(--hair);border-radius:2px;background:var(--sunken);cursor:pointer;
+  position:relative;transition:background var(--dur),border-color var(--dur);
+}
+.check input:checked{background:var(--accent);border-color:var(--accent)}
+.check input:checked::after{
+  content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;
+  border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:rotate(42deg);
+}
+.check span{font-size:12.5px;color:var(--ink-2)}
+.field.has-off .row2,.field.has-off .row3,.field.has-off .check,.field.has-off .hint{opacity:.5}
+select.sel:disabled,.check input:disabled{cursor:not-allowed}
+.act-row{display:flex;gap:8px;flex-wrap:wrap;padding-top:16px;margin-top:14px;border-top:1px solid var(--grid)}
+.disclaimer{color:var(--ink-3);font-size:11px;margin-top:14px;line-height:1.5}
+
+/* ---------- results column ---------- */
+.results{display:grid;gap:18px;min-width:0}
+.viewbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px 14px;background:var(--card);border:1px solid var(--hair);
+  border-radius:var(--r);box-shadow:var(--shadow);
+}
+.seg{display:inline-flex;background:var(--sunken);border:1px solid var(--hair);border-radius:var(--r);padding:2px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{
+  padding:5px 11px;font-size:12.5px;font-weight:500;color:var(--ink-3);
+  border-radius:2px;cursor:pointer;transition:background var(--dur),color var(--dur);white-space:nowrap;
+}
+.seg label:hover{color:var(--ink)}
+.seg input:checked + label{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.seg input:focus-visible + label{outline:2px solid var(--accent);outline-offset:2px}
+.vb-label{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3)}
+.spacer{flex:1 1 auto}
+.vb-actions{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  display:none;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);
+  background:var(--sunken);border:1px dashed var(--hair);border-radius:var(--r);padding:5px 9px;
+}
+.chip.on{display:inline-flex}
+.chip b{font-variant-numeric:tabular-nums}
+.chip button{background:none;border:0;color:var(--ink-3);cursor:pointer;padding:0 0 0 2px;font-size:14px;line-height:1}
+.chip button:hover{color:var(--danger)}
+.chip.warn{border-style:solid;border-color:var(--warn);color:var(--ink-2)}
+.chip.warn svg{width:13px;height:13px;flex:none;color:var(--warn)}
+
+/* ---------- hero ---------- */
+.hero{padding:20px 20px 18px}
+.tile-label{font-size:12px;color:var(--ink-3);letter-spacing:.2px}
+.hero-value{font-size:clamp(32px,4.8vw,48px);font-weight:700;letter-spacing:-1.5px;line-height:1.05;margin-top:4px}
+.hero-note{font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.hero-note b{color:var(--ink);font-weight:600}
+.verdict{
+  display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:9px 11px;
+  background:var(--sunken);border:1px solid var(--hair);border-left:3px solid var(--hair);
+  border-radius:var(--r);font-size:12.5px;line-height:1.4;
+}
+.verdict svg{width:15px;height:15px;flex:none;margin-top:1px}
+.verdict.ok{border-left-color:var(--ok);color:var(--ink-2)}
+.verdict.ok svg{color:var(--ok)}
+.verdict.bad{border-left-color:var(--danger);color:var(--ink-2)}
+.verdict.bad svg{color:var(--danger)}
+.verdict b{color:var(--ink);font-weight:600}
+.compbar{display:flex;gap:2px;height:30px;margin-top:16px;background:var(--card);border-radius:2px;overflow:visible}
+.compseg{
+  position:relative;min-width:2px;border-radius:2px;display:flex;align-items:center;
+  padding:0 8px;overflow:hidden;font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
+  transition:filter var(--dur);
+}
+.compseg.s1{background:var(--s1)}
+.compseg.s2{background:var(--s2)}
+.compseg.s3{background:var(--s3)}
+.compseg.other{background:var(--muted-bar)}
+.compseg.under{background:repeating-linear-gradient(45deg,var(--danger) 0 3px,transparent 3px 7px);border:1px solid var(--danger)}
+.compbar:hover .compseg{filter:saturate(.6)}
+.compbar .compseg:hover{filter:none}
+.comp-cap{display:flex;justify-content:space-between;gap:12px;color:var(--ink-3);font-size:11px;margin-top:7px}
+
+/* ---------- tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:14px}
+.tile{padding:14px 15px 15px}
+.tile .k{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-3);min-height:17px}
+.dot{width:9px;height:9px;border-radius:2px;flex:none}
+.dot.s1{background:var(--s1)}.dot.s2{background:var(--s2)}.dot.s3{background:var(--s3)}
+.dot.other{background:var(--muted-bar)}
+.tile .v{font-size:22px;font-weight:600;letter-spacing:-.6px;margin-top:5px}
+.tile .m{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.tile .v.neg{color:var(--danger)}
+.tile .v.pos{color:var(--ok)}
+.tile .v.pend{color:var(--ink-3)}
+
+/* ---------- chart cards ---------- */
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 18px 0}
+h2{font-size:14.5px;font-weight:700;letter-spacing:-.2px}
+.card-sub{font-size:12px;color:var(--ink-3);margin-top:3px}
+.chart-wrap{position:relative;padding:6px 12px 4px;touch-action:pan-y}
+.chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+.chart-wrap svg:focus{outline:none}
+.chart-wrap svg:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:2px 18px 16px}
+.lg{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+.lg .sw{width:12px;height:9px;border-radius:2px;flex:none}
+.lg .swl{width:14px;height:2px;border-radius:2px;flex:none}
+.lg .val{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.tip{
+  position:absolute;z-index:6;pointer-events:none;opacity:0;
+  min-width:186px;max-width:262px;padding:9px 11px;
+  background:var(--raised);border:1px solid var(--hair);border-radius:var(--r);
+  box-shadow:0 6px 22px rgba(0,0,0,.28);
+  transition:opacity var(--dur);
+}
+.tip.on{opacity:1}
+.tip .th{font-size:11px;color:var(--ink-3);letter-spacing:.3px;margin-bottom:6px}
+.tip .tr{display:flex;align-items:center;gap:8px;margin-top:4px}
+.tip .tk{width:14px;height:2px;border-radius:2px;flex:none}
+.tip .tv{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;margin-left:auto;letter-spacing:-.2px}
+.tip .tn{font-size:11.5px;color:var(--ink-3)}
+.tip .tot{border-top:1px solid var(--grid);margin-top:7px;padding-top:6px}
+.tip .tot .tn{color:var(--ink-2)}
+.tip .tot .tv{font-size:15px}
+.tip .note{font-size:11px;color:var(--ink-3);margin-top:7px;padding-top:6px;border-top:1px solid var(--grid);line-height:1.4}
+
+/* ---------- table ---------- */
+.table-card{padding-bottom:4px}
+.table-scroll{max-height:440px;overflow:auto;margin:12px 0 0;border-top:1px solid var(--grid)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+caption{text-align:left;padding:0 18px 8px;color:var(--ink-3);font-size:12px}
+th,td{padding:8px 8px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;padding-left:18px;position:sticky;left:0;background:var(--card)}
+td:last-child,th:last-child{padding-right:18px}
+thead th{
+  position:sticky;top:0;z-index:2;background:var(--card);color:var(--ink-3);
+  font-weight:600;font-size:11px;letter-spacing:.4px;text-transform:uppercase;
+  border-bottom:1px solid var(--hair);
+}
+thead th:first-child{z-index:3}
+tbody tr:nth-child(even) td{background:var(--sunken)}
+tbody tr:nth-child(even) td:first-child{background:var(--sunken)}
+tbody tr:hover td{background:var(--accent-soft)}
+tbody td{border-bottom:1px solid var(--grid)}
+tbody td.em{font-weight:600;color:var(--ink)}
+tbody tr.mark td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+tbody tr.short td{color:var(--danger)}
+tr.tot td,tr.tot td:first-child{font-weight:700;border-top:1px solid var(--hair);border-bottom:0;background:var(--card)}
+
+footer{max-width:1400px;margin:0 auto;padding:4px 20px 44px;color:var(--ink-3);font-size:11.5px;line-height:1.6}
+footer a,.disclaimer a{color:var(--accent)}
+footer h3{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink-3);margin:16px 0 6px}
+footer ul{margin:0;padding-left:18px}
+footer li{margin-top:4px}
+footer code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--ink-2)}
+.legal{margin-top:14px;padding:15px 17px;background:var(--card);border:1px solid var(--hair);border-radius:var(--r)}
+.legal h2{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+.legal p{margin-top:8px}
+.legal p:first-of-type{margin-top:0}
+.legal strong{color:var(--ink-2);font-weight:600}
+
+@media (max-width:560px){
+  .topbar{padding:16px 14px 12px}
+  .layout{padding:0 14px 30px;gap:14px}
+  .results{gap:14px}
+  .inputs{padding:2px 14px 16px}
+  .hero{padding:16px 15px 15px}
+  .card-head,.legend{padding-left:14px;padding-right:14px}
+  th:first-child,td:first-child{padding-left:14px}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- print ---------- */
+@media print{
+  html[data-theme]{
+    --bg:#fff;--card:#fff;--sunken:#fff;--raised:#fff;--hair:#bbb;--grid:#ddd;
+    --ink:#111;--ink-2:#333;--ink-3:#555;--shadow:none;
+  }
+  .topbar-actions,.act-row,.viewbar .btn,.chip button,input[type=range],.ticks,.skip{display:none!important}
+  .layout{display:block;max-width:none;padding:0}
+  .inputs{position:static;max-height:none;overflow:visible;page-break-after:avoid}
+  /* paper is wide: set the assumptions two-up instead of stretching each row */
+  .fields{columns:2;column-gap:28px}
+  .fields .field{border-top:0;border-bottom:1px solid var(--grid);break-inside:avoid;padding:8px 0}
+  .fields .field:last-child{border-bottom:0}
+  /* The assumptions panel and the year table are both taller than a page, so
+     they have to be allowed to break; only the cards are held together. */
+  .panel,.viewbar{box-shadow:none}
+  .viewbar,.hero,.tile,.chart-card:not(.table-card){break-inside:avoid}
+  .results{margin-top:14px}
+  .table-scroll{max-height:none;overflow:visible}
+  .tip{display:none}
+}
+</style>
+<script>
+/* Set the theme before first paint so a light-mode reader never sees a dark flash. */
+(function(){
+  try {
+    var t = localStorage.getItem('aufire.theme');
+    if (t !== 'dark' && t !== 'light'){
+      t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch(e){}
+})();
+</script>
+</head>
+<body>
+<a class="skip" href="#results">Skip to results</a>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="6" fill="var(--accent-soft)"></rect>
+      <path d="M5 25 L16 9 L27 22" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      <circle cx="16" cy="9" r="2.8" fill="var(--accent)"></circle>
+    </svg>
+    <div>
+      <h1>Australian FIRE Calculator</h1>
+      <p class="sub">When you can stop working — super and outside super modelled apart, with the bridge to 60 and the age pension.</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn" id="themeBtn" type="button" aria-pressed="false">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+      <span id="themeTxt">Light</span>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ INPUTS ============ -->
+  <form class="panel inputs" id="inputs" autocomplete="off" novalidate>
+    <fieldset>
+      <legend class="grp">About you</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="age">Your age now</label>
+          <span class="num sm"><input id="age" type="text" inputmode="numeric" data-key="age" data-kind="int"></span>
+        </div>
+        <input type="range" id="age_r" data-for="age" min="18" max="70" step="1" aria-label="Your age now slider">
+        <div class="ticks"><span>18</span><span>70</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="retireAge">Stop working at</label>
+          <span class="num sm"><input id="retireAge" type="text" inputmode="numeric" data-key="retireAge" data-kind="int"></span>
+        </div>
+        <input type="range" id="retireAge_r" data-for="retireAge" min="25" max="75" step="1" aria-label="Retirement age slider">
+        <div class="ticks"><span>25</span><span>60</span><span>75</span></div>
+        <p class="hint" id="retireHint"></p>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="planTo">Plan out to age</label>
+          <span class="num sm"><input id="planTo" type="text" inputmode="numeric" data-key="planTo" data-kind="int"></span>
+        </div>
+        <input type="range" id="planTo_r" data-for="planTo" min="70" max="105" step="1" aria-label="Plan to age slider">
+        <div class="ticks"><span>70</span><span>105</span></div>
+        <p class="hint">A 65-year-old Australian today has a fair chance of reaching their early 90s.</p>
+      </div>
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">Household</span>
+            <select class="sel" id="situation" data-key="situation">
+              <option value="single">Single</option>
+              <option value="couple">Couple</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="homeowner" data-key="homeowner"><span>We own our home (raises the age pension assets test)</span></label>
+        <div id="partnerFields" hidden>
+          <div class="row2">
+            <label><span class="lbl-sm">Partner salary</span>
+              <span class="num"><span class="aff">$</span><input id="partnerSalary" type="text" inputmode="decimal" data-key="partnerSalary" data-kind="money"></span>
+            </label>
+            <label><span class="lbl-sm">Partner super</span>
+              <span class="num"><span class="aff">$</span><input id="partnerSuper" type="text" inputmode="decimal" data-key="partnerSuper" data-kind="money"></span>
+            </label>
+          </div>
+          <p class="hint">The partner is assumed to be the same age and to stop working at the same time. Balances are pooled; tax and contribution caps are worked out per person.</p>
+        </div>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Money coming in</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="salary">Salary, before tax</label>
+          <span class="num wide"><span class="aff">$</span><input id="salary" type="text" inputmode="decimal" data-key="salary" data-kind="money"></span>
+        </div>
+        <input type="range" id="salary_r" data-for="salary" min="0" max="400000" step="2500" aria-label="Salary slider">
+        <div class="ticks"><span>$0</span><span>$400k</span></div>
+        <p class="hint">Excluding employer super. Add your partner's separately above.</p>
+      </div>
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">Pay rises above inflation</span>
+            <span class="num"><input id="salaryGrowth" type="text" inputmode="decimal" data-key="salaryGrowth" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+          <label><span class="lbl-sm">Employer super (SG)</span>
+            <span class="num"><input id="sg" type="text" inputmode="decimal" data-key="sg" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="sacrifice">Salary sacrifice</label>
+          <span class="num wide"><span class="aff">$</span><input id="sacrifice" type="text" inputmode="decimal" data-key="sacrifice" data-kind="money"></span>
+        </div>
+        <input type="range" id="sacrifice_r" data-for="sacrifice" min="0" max="35000" step="500" aria-label="Salary sacrifice slider">
+        <div class="ticks"><span>$0 / yr</span><span>$35k / yr</span></div>
+        <p class="hint" id="capHint"></p>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Money going out</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="spendNow">Spending while working</label>
+          <span class="num wide"><span class="aff">$</span><input id="spendNow" type="text" inputmode="decimal" data-key="spendNow" data-kind="money"></span>
+        </div>
+        <input type="range" id="spendNow_r" data-for="spendNow" min="0" max="300000" step="1000" aria-label="Spending while working slider">
+        <div class="ticks"><span>$0 / yr</span><span>$300k / yr</span></div>
+        <p class="hint" id="saveHint"></p>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="spendRet">Spending once retired</label>
+          <span class="num wide"><span class="aff">$</span><input id="spendRet" type="text" inputmode="decimal" data-key="spendRet" data-kind="money"></span>
+        </div>
+        <input type="range" id="spendRet_r" data-for="spendRet" min="0" max="300000" step="1000" aria-label="Spending once retired slider">
+        <div class="ticks"><span>$0 / yr</span><span>$300k / yr</span></div>
+        <p class="hint">In today's money, held flat for life. No mortgage, no commute — but more travel and, later, more care.</p>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">What you have now</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="superBal">Super balance</label>
+          <span class="num wide"><span class="aff">$</span><input id="superBal" type="text" inputmode="decimal" data-key="superBal" data-kind="money"></span>
+        </div>
+        <input type="range" id="superBal_r" data-for="superBal" min="0" max="2000000" step="5000" aria-label="Super balance slider">
+        <div class="ticks"><span>$0</span><span>$2M</span></div>
+        <p class="hint">Locked away until age 60. Add your partner's above.</p>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="outBal">Outside super</label>
+          <span class="num wide"><span class="aff">$</span><input id="outBal" type="text" inputmode="decimal" data-key="outBal" data-kind="money"></span>
+        </div>
+        <input type="range" id="outBal_r" data-for="outBal" min="0" max="3000000" step="5000" aria-label="Outside super slider">
+        <div class="ticks"><span>$0</span><span>$3M</span></div>
+        <p class="hint">Shares, ETFs, cash — anything you can sell before 60. Not the home you live in.</p>
+      </div>
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">Of that, unrealised gain</span>
+            <span class="num"><span class="aff">$</span><input id="outGain" type="text" inputmode="decimal" data-key="outGain" data-kind="money"></span>
+          </label>
+        </div>
+        <p class="hint">Sets the starting cost base, so capital gains tax on the way out is not understated.</p>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Returns and costs</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="ret">Return before fees</label>
+          <span class="num"><input id="ret" type="text" inputmode="decimal" data-key="ret" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="ret_r" data-for="ret" min="0" max="15" step="0.1" aria-label="Return before fees slider">
+        <div class="ticks"><span>0%</span><span>15%</span></div>
+        <p class="hint" id="realHint"></p>
+      </div>
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">Super fee</span>
+            <span class="num"><input id="feeSuper" type="text" inputmode="decimal" data-key="feeSuper" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+          <label><span class="lbl-sm">Outside-super fee</span>
+            <span class="num"><input id="feeOut" type="text" inputmode="decimal" data-key="feeOut" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="inflation">Inflation</label>
+          <span class="num"><input id="inflation" type="text" inputmode="decimal" data-key="inflation" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="inflation_r" data-for="inflation" min="0" max="8" step="0.1" aria-label="Inflation slider">
+        <div class="ticks"><span>0%</span><span>8%</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="vol">Return volatility</label>
+          <span class="num"><input id="vol" type="text" inputmode="decimal" data-key="vol" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="vol_r" data-for="vol" min="0" max="30" step="0.5" aria-label="Return volatility slider">
+        <div class="ticks"><span>0%</span><span>30%</span></div>
+        <p class="hint">Only used for the range of outcomes chart. A diversified growth portfolio has sat near 12&ndash;14%.</p>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Retirement rules</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">After 60, spend from</span>
+            <select class="sel" id="drawOrder" data-key="drawOrder">
+              <option value="super">Super first</option>
+              <option value="out">Outside super first</option>
+              <option value="even">Both, in proportion</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="agePension" data-key="agePension"><span>Include an age pension estimate from 67</span></label>
+        <label class="check"><input type="checkbox" id="indexTax" data-key="indexTax"><span>Assume tax thresholds keep pace with inflation</span></label>
+        <p class="hint">Turn that off to see bracket creep: the thresholds stay where they are today while your salary and drawings inflate past them.</p>
+      </div>
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">Rule-of-thumb withdrawal rate</span>
+            <span class="num"><input id="swr" type="text" inputmode="decimal" data-key="swr" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+        </div>
+        <p class="hint">Used only for the &ldquo;rule of thumb&rdquo; tile. The projection itself draws what you actually need.</p>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Extra cash flow</legend>
+      <div class="fields">
+
+      <div class="field" id="x1field">
+        <div class="row2">
+          <label><span class="lbl-sm">Kind</span>
+            <select class="sel" id="x1k" data-key="x1k">
+              <option value="out">Extra spending</option>
+              <option value="in">Extra income</option>
+            </select>
+          </label>
+          <label><span class="lbl-sm">Amount / yr</span>
+            <span class="num"><span class="aff">$</span><input id="x1a" type="text" inputmode="decimal" data-key="x1a" data-kind="money"></span>
+          </label>
+        </div>
+        <div class="row2">
+          <label><span class="lbl-sm">From age</span>
+            <span class="num"><input id="x1f" type="text" inputmode="numeric" data-key="x1f" data-kind="int"></span>
+          </label>
+          <label><span class="lbl-sm">To age</span>
+            <span class="num"><input id="x1t" type="text" inputmode="numeric" data-key="x1t" data-kind="int"></span>
+          </label>
+        </div>
+        <p class="hint">The travel budget for the go-go years, school fees, a mortgage that still has years to run.</p>
+      </div>
+
+      <div class="field" id="x2field">
+        <div class="row2">
+          <label><span class="lbl-sm">Kind</span>
+            <select class="sel" id="x2k" data-key="x2k">
+              <option value="out">Extra spending</option>
+              <option value="in">Extra income</option>
+            </select>
+          </label>
+          <label><span class="lbl-sm">Amount / yr</span>
+            <span class="num"><span class="aff">$</span><input id="x2a" type="text" inputmode="decimal" data-key="x2a" data-kind="money"></span>
+          </label>
+        </div>
+        <div class="row2">
+          <label><span class="lbl-sm">From age</span>
+            <span class="num"><input id="x2f" type="text" inputmode="numeric" data-key="x2f" data-kind="int"></span>
+          </label>
+          <label><span class="lbl-sm">To age</span>
+            <span class="num"><input id="x2t" type="text" inputmode="numeric" data-key="x2t" data-kind="int"></span>
+          </label>
+        </div>
+        <p class="hint">Extra income is taxed as ordinary income and counts towards the age pension income test.</p>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Fine print</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="row2">
+          <label><span class="lbl-sm">Distribution yield</span>
+            <span class="num"><input id="distYield" type="text" inputmode="decimal" data-key="distYield" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+          <label><span class="lbl-sm">Of that, franked</span>
+            <span class="num"><input id="franked" type="text" inputmode="decimal" data-key="franked" data-kind="pct"><span class="aff suf">%</span></span>
+          </label>
+        </div>
+        <p class="hint">Outside super, the yield is taxed as income every year and reinvested; the rest of the return is capital growth, taxed only when sold. Franking credits are refundable, so they can pay tax back.</p>
+      </div>
+
+      <div class="field">
+        <label class="check"><input type="checkbox" id="patterns" data-key="patterns"><span>Use patterns as well as colour in charts</span></label>
+      </div>
+      </div>
+    </fieldset>
+
+    <div class="act-row">
+      <button class="btn" type="button" id="earliestBtn" title="Set the retirement age to the earliest one that still works">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+        Use earliest
+      </button>
+      <button class="btn" type="button" id="resetBtn">Reset</button>
+    </div>
+    <p class="disclaimer">
+      Educational tool only — <strong>not financial, tax or superannuation advice</strong>, and not a prediction.
+      Rates are those published for the <b id="fyLabel">2026&ndash;27</b> year and are applied to every future year;
+      real markets are not steady, real law changes, and your own position will differ. Provided without warranty
+      and used entirely at your own risk — see the <a href="#disclaimer">full disclaimer</a>.
+    </p>
+  </form>
+
+  <!-- ============ RESULTS ============ -->
+  <section class="results" id="results" aria-label="Results">
+
+    <div class="viewbar">
+      <span class="vb-label" id="viewLbl">Show</span>
+      <div class="seg" role="radiogroup" aria-labelledby="viewLbl">
+        <input type="radio" name="basis" id="basis-real" value="real" checked><label for="basis-real">Today's money</label>
+        <input type="radio" name="basis" id="basis-nom" value="nominal"><label for="basis-nom">Actual money</label>
+      </div>
+      <span class="chip warn" id="warnChip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <b id="warnTxt"></b>
+      </span>
+      <span class="spacer"></span>
+      <div class="vb-actions">
+      <button class="btn" type="button" id="linkBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
+        <span id="linkTxt">Copy link</span>
+      </button>
+      <button class="btn" type="button" id="csvBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 21h16"/></svg>
+        CSV
+      </button>
+      <button class="btn" type="button" id="printBtn">Print</button>
+      </div>
+    </div>
+
+    <div class="panel hero">
+      <p class="tile-label" id="heroLabel">Earliest you could stop working</p>
+      <p class="hero-value" id="heroValue">—</p>
+      <p class="hero-note" id="heroNote"></p>
+      <div class="verdict" id="verdict">
+        <svg id="verdictIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+        <span id="verdictTxt"></span>
+      </div>
+      <div class="compbar" id="compBar" role="img" aria-label="Where the money to live on comes from"></div>
+      <div class="comp-cap"><span id="compCapL"></span><span id="compCapR"></span></div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="panel chart-card">
+      <div class="card-head">
+        <div>
+          <h2>Your money, year by year</h2>
+          <p class="card-sub" id="planSub">Super and everything outside it, from today to the end of the plan.</p>
+        </div>
+      </div>
+      <div class="chart-wrap" id="planWrap">
+        <svg id="planSvg" role="img" tabindex="0" aria-describedby="planDesc"></svg>
+        <div class="tip" id="planTip" role="tooltip" aria-hidden="true"></div>
+      </div>
+      <div class="legend" id="planLegend"></div>
+      <p class="sr-only" id="planDesc"></p>
+      <p class="sr-only" id="planLive" aria-live="polite"></p>
+    </div>
+
+    <div class="panel chart-card">
+      <div class="card-head">
+        <div>
+          <h2>If you stopped working at a different age</h2>
+          <p class="card-sub" id="ageSub">How long the money lasts, one column per retirement age.</p>
+        </div>
+      </div>
+      <div class="chart-wrap" id="ageWrap">
+        <svg id="ageSvg" role="img" tabindex="0" aria-describedby="ageDesc"></svg>
+        <div class="tip" id="ageTip" role="tooltip" aria-hidden="true"></div>
+      </div>
+      <div class="legend" id="ageLegend"></div>
+      <p class="sr-only" id="ageDesc"></p>
+      <p class="sr-only" id="ageLive" aria-live="polite"></p>
+    </div>
+
+    <div class="panel chart-card">
+      <div class="card-head">
+        <div>
+          <h2>What you live on after you stop</h2>
+          <p class="card-sub" id="incSub">Every dollar of spending, traced back to where it came from.</p>
+        </div>
+      </div>
+      <div class="chart-wrap" id="incWrap">
+        <svg id="incSvg" role="img" tabindex="0" aria-describedby="incDesc"></svg>
+        <div class="tip" id="incTip" role="tooltip" aria-hidden="true"></div>
+      </div>
+      <div class="legend" id="incLegend"></div>
+      <p class="sr-only" id="incDesc"></p>
+      <p class="sr-only" id="incLive" aria-live="polite"></p>
+    </div>
+
+    <div class="panel chart-card">
+      <div class="card-head">
+        <div>
+          <h2>If markets misbehave</h2>
+          <p class="card-sub" id="mcSub">The same plan run against a thousand different return sequences.</p>
+        </div>
+      </div>
+      <div class="chart-wrap" id="mcWrap">
+        <svg id="mcSvg" role="img" tabindex="0" aria-describedby="mcDesc"></svg>
+        <div class="tip" id="mcTip" role="tooltip" aria-hidden="true"></div>
+      </div>
+      <div class="legend" id="mcLegend"></div>
+      <p class="sr-only" id="mcDesc"></p>
+      <p class="sr-only" id="mcLive" aria-live="polite"></p>
+    </div>
+
+    <div class="panel chart-card table-card">
+      <div class="card-head"><div><h2>Every year of the plan</h2><p class="card-sub" id="tableSub"></p></div></div>
+      <div class="table-scroll">
+        <table id="yearTable">
+          <caption class="sr-only">Balances, income, tax and drawings for each year of the plan, by age.</caption>
+          <thead><tr id="tableHead"></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer>
+  <p>Built as a single self-contained HTML file — no server, no tracking, no data leaves your browser. Every setting lives in the page URL, so a copied link reproduces the exact scenario.</p>
+
+  <h3>How it works</h3>
+  <ul>
+    <li><b>Two buckets, because Australia has two.</b> Super is untouchable until <b>preservation age 60</b>; everything outside it can be sold at any time. Retire before 60 and the years in between have to be paid for entirely from outside super — the <b>bridge</b>. That single rule is what makes an Australian FIRE number different from an American one.</li>
+    <li><b>Real tax, not an average rate.</b> Income is run through the resident rate scale with the Medicare levy, LITO and — once you are 67 — SAPTO. Employer and sacrificed contributions are taxed at 15% going in, with Division&nbsp;293 adding another 15% above $250,000. Excess concessional contributions are added back to your income with a 15% offset, the way the ATO does it.</li>
+    <li><b>Super earnings</b> are taxed at 15% while you are still accumulating, and at nothing once the balance is supporting a retirement-phase pension after 60 — which also switches on the minimum drawdown, 4% of the balance rising to 14% by 95.</li>
+    <li><b>Outside super, the yield and the growth are taxed differently.</b> The distribution yield is taxed as income every year and reinvested; franking credits are applied as refundable offsets. The rest of the return is capital growth, untaxed until you sell — and when you do, the gain is discounted by 50% and taxed at your marginal rate, which in retirement is often nothing at all.</li>
+    <li><b>The age pension</b> is estimated from both tests — assets, and income by deeming — and you get the lower of the two. The home you live in is excluded. It is indexed with inflation, so it holds its value in today's money.</li>
+    <li><b>Money is simulated in actual dollars</b> and every threshold, cap, pension rate and spending figure is indexed to inflation, so the <b>Today's money</b> view is a straight deflation of the same numbers. Growth is credited on the opening balance plus half of the year's flows.</li>
+    <li><b>The range of outcomes</b> chart draws a fresh return for each year of each of 1,000 runs from a normal distribution with your expected return and volatility, then re-runs the whole plan — tax, pension and drawdown included. The seed is fixed, so the same inputs always give the same fan.</li>
+  </ul>
+
+  <h3>What it does not do</h3>
+  <ul>
+    <li>Your home, your mortgage and its offset account; investment property, negative gearing and land tax; HECS/HELP; private health cover and the surcharge; insurance premiums inside super.</li>
+    <li>Non-concessional contributions and the bring-forward rule, downsizer and spouse contributions, the government co-contribution, LISTO, and the carry-forward of unused concessional cap.</li>
+    <li>The transfer balance cap ($2.1M a person) and the tax on the excess; the proposed extra tax on very large balances.</li>
+    <li>The Work Bonus, rent assistance, the pension loans scheme, and the difference in age pension rates between illness-separated couples.</li>
+    <li>Anything about <em>you</em>: your job security, your health, your family, or the chance that you change your mind at 48.</li>
+  </ul>
+
+  <section class="legal" id="disclaimer" aria-labelledby="disclaimer-h">
+    <h2 id="disclaimer-h">Disclaimer</h2>
+    <p><strong>This calculator is provided for general information and educational purposes only. It is not
+    financial, investment, superannuation, tax or legal advice.</strong> It takes no account of your objectives,
+    financial situation or needs, and nothing in it is a recommendation to acquire, hold or dispose of any
+    investment or financial product, or to make or vary a superannuation contribution.</p>
+    <p>The results are <strong>hypothetical illustrations</strong> generated solely from the figures you enter. They
+    assume steady average returns, unchanging law, and rates and thresholds fixed at their published values for
+    a single year. Actual returns vary, may be negative, and past performance is no guide to future
+    performance. Tax, superannuation and social security rules change frequently and apply differently to
+    different people. The calculations ignore transaction costs, brokerage, insurance, product-specific rules
+    and the particulars of your own tax position, and the age pension figure is an estimate only — not an
+    assessment by Services Australia. No result should be treated as a projection, forecast or guarantee.</p>
+    <p><strong>The tool is provided &ldquo;as is&rdquo;, without warranty of any kind</strong>, express or implied, including
+    without limitation any warranty of accuracy, completeness, reliability, merchantability or fitness
+    for a particular purpose. To the maximum extent permitted by law, the author and any distributor
+    accept <strong>no responsibility or liability whatsoever</strong> for any error, omission, defect or inaccuracy
+    in the calculations, content or output, nor for any loss or damage — direct, indirect,
+    consequential or otherwise — arising from your use of, or reliance on, this tool. You use it
+    entirely at your own risk, and you are responsible for verifying any figure before acting on it.</p>
+    <p>Before making any financial decision, seek advice from a licensed financial adviser, a registered tax
+    agent, or another qualified professional who can consider your individual circumstances. Confirm current
+    rates and thresholds with the <a href="https://www.ato.gov.au/" rel="noopener">ATO</a> and
+    <a href="https://www.servicesaustralia.gov.au/" rel="noopener">Services Australia</a>.</p>
+  </section>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ================================================================
+   1. THE RULES  (published figures for the 2026-27 income year)
+   ================================================================
+   Every dollar figure below is a 2026-27 amount. The projection runs in
+   actual dollars and multiplies these by (1 + inflation)^t, so in real
+   terms the system holds still and "Today's money" is a clean deflation.
+   The one exception is the Division 293 threshold, which has not moved
+   since 2017 and is left where it is on purpose.
+   ================================================================ */
+/* --- engine:start --- */
+var AU = {
+  fy: '2026-27',
+  /* resident rate scale: [top of bracket, marginal rate] */
+  brackets: [[18200, 0], [45000, 0.15], [135000, 0.30], [190000, 0.37], [Infinity, 0.45]],
+  medicare: { rate: 0.02, lower: 28011, seniorLower: 44268 },
+  lito:  { max: 700, t1: 37500, r1: 0.05, t2: 45000, r2: 0.015 },
+  sapto: { single: 2230, couple: 1602, thrSingle: 32279, thrCouple: 28974, taper: 0.125 },
+  sg: 0.12,
+  maxContribBase: 270830,        /* annual, from 1 July 2026 */
+  concessionalCap: 32500,
+  contribTax: 0.15,
+  div293: { threshold: 250000, rate: 0.15 },
+  superEarnTax: 0.15,            /* accumulation phase; nil in retirement phase */
+  cgtDiscount: 0.5,              /* assets held more than 12 months */
+  frankingRate: 0.30,            /* company tax rate behind a franked dividend */
+  preservationAge: 60,           /* everyone born after 30 June 1964 */
+  pensionAge: 67,
+  /* minimum account-based pension drawdown: [age below which, rate] */
+  minDraw: [[65, 0.04], [75, 0.05], [80, 0.06], [85, 0.07], [90, 0.09], [95, 0.11], [Infinity, 0.14]],
+  ap: {
+    maxFn:       { single: 1200.90, couple: 1810.40 },   /* per fortnight, incl. supplements */
+    assetFree:   { single: 333000, couple: 499000, singleRent: 600000, coupleRent: 766000 },
+    assetTaperFnPerK: 3,
+    incomeFreeFn: { single: 226, couple: 396 },
+    incomeTaper: 0.5,
+    deem: { lowRate: 0.0175, highRate: 0.0375, thr: { single: 66800, couple: 110600 } }
+  }
+};
+
+function clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
+
+/* ---------------- income tax ---------------- */
+function bracketTax(ti, ix){
+  var t = 0, prev = 0, B = AU.brackets;
+  for (var i = 0; i < B.length; i++){
+    var cap = B[i][0] * ix;
+    if (ti <= prev) break;
+    t += (Math.min(ti, cap) - prev) * B[i][1];
+    prev = cap;
+  }
+  return t;
+}
+function lito(ti, ix){
+  var L = AU.lito, mx = L.max * ix, t1 = L.t1 * ix, t2 = L.t2 * ix;
+  if (ti <= t1) return mx;
+  if (ti <= t2) return Math.max(0, mx - (ti - t1) * L.r1);
+  return Math.max(0, mx - (t2 - t1) * L.r1 - (ti - t2) * L.r2);
+}
+function sapto(ti, couple, ix){
+  var S = AU.sapto;
+  var mx  = (couple ? S.couple : S.single) * ix;
+  var thr = (couple ? S.thrCouple : S.thrSingle) * ix;
+  return Math.max(0, mx - Math.max(0, ti - thr) * S.taper);
+}
+/* The levy has its own low-income shade-in and is not reduced by offsets. */
+function medicareLevy(ti, senior, ix){
+  var lower = (senior ? AU.medicare.seniorLower : AU.medicare.lower) * ix;
+  if (ti <= lower) return 0;
+  return Math.min(0.10 * (ti - lower), AU.medicare.rate * ti);
+}
+function personalTax(ti, senior, couple, ix){
+  ti = Math.max(0, ti);
+  var off = lito(ti, ix) + (senior ? sapto(ti, couple, ix) : 0);
+  return Math.max(0, bracketTax(ti, ix) - off) + medicareLevy(ti, senior, ix);
+}
+function marginalRate(ti, senior, couple, ix){
+  var d = 100;
+  return (personalTax(ti + d, senior, couple, ix) - personalTax(ti, senior, couple, ix)) / d;
+}
+/* Extra 15% on concessional contributions once income + contributions clears
+   $250,000 — on the lesser of the contributions and the excess over it. */
+function div293(ti, conc){
+  var over = ti + conc - AU.div293.threshold;
+  return over > 0 ? Math.min(conc, over) * AU.div293.rate : 0;
+}
+
+/* ---------------- super ---------------- */
+function minDrawRate(age){
+  var M = AU.minDraw;
+  for (var i = 0; i < M.length; i++) if (age < M[i][0]) return M[i][1];
+  return M[M.length - 1][1];
+}
+
+/* ---------------- age pension ----------------
+   Both tests are applied and the lower payment wins. The assets taper
+   ($3 a fortnight per $1,000) and the income taper (50c in the dollar) are
+   ratios, so indexing the thresholds and the maximum rate together keeps the
+   whole test still in real terms. Financial assets are deemed rather than
+   counted at their actual earnings, which is what Services Australia does. */
+function agePensionFor(assets, otherIncome, couple, homeowner, ix){
+  var A = AU.ap;
+  var maxA = (couple ? A.maxFn.couple : A.maxFn.single) * 26 * ix;
+  var free = (couple ? (homeowner ? A.assetFree.couple : A.assetFree.coupleRent)
+                     : (homeowner ? A.assetFree.single : A.assetFree.singleRent)) * ix;
+  var redA = Math.max(0, assets - free) * (A.assetTaperFnPerK * 26 / 1000);
+  var thr = (couple ? A.deem.thr.couple : A.deem.thr.single) * ix;
+  var deemed = Math.min(assets, thr) * A.deem.lowRate + Math.max(0, assets - thr) * A.deem.highRate;
+  var freeI = (couple ? A.incomeFreeFn.couple : A.incomeFreeFn.single) * 26 * ix;
+  var redI = Math.max(0, deemed + Math.max(0, otherIncome) - freeI) * A.incomeTaper;
+  return clamp(maxA - Math.max(redA, redI), 0, maxA);
+}
+
+/* ================================================================
+   2. THE PROJECTION
+
+   One pass per year of your life, in actual dollars.
+
+   Two buckets: super, which nothing can touch before 60, and everything
+   outside it, which you can sell whenever you like and pay capital gains
+   tax on. Retire before 60 and every dollar of spending has to come out
+   of the second bucket until the first one unlocks.
+
+   Within a year the order is: earn, contribute, work out the tax, see what
+   the shortfall is, sell what is needed to cover it, then credit growth on
+   the opening balance plus half of the year's flows.
+
+   The one loop is there because selling shares realises a capital gain,
+   which raises the tax, which raises the amount you have to sell. It runs
+   until the amount stops moving, which for most years is a single pass and
+   never more than a handful — so the steady projection and every simulated
+   one settle on exactly the same figure.
+   ================================================================ */
+function project(p, opt){
+  opt = opt || {};
+  var retire = Math.max(p.age, opt.retireAge != null ? opt.retireAge : p.retireAge);
+  var seq = opt.returns || null;
+  var totals = opt.totals || null;
+  var keep = !opt.light;
+  var years = Math.max(1, Math.round(p.planTo - p.age));
+  var infl = p.inflation;
+
+  var sup = p.superBal + p.partnerSuper;
+  var out = p.outBal;
+  var cb  = clamp(p.outBal - p.outGain, 0, p.outBal);
+
+  var rows = [], fail = null, atRetire = null;
+  var capBreach = 0, bridgeSpend = 0, bridgeYears = 0;
+  var taxTotal = 0, contribTaxTotal = 0, d293Total = 0, superEarnTaxTotal = 0;
+  var fund = { out: 0, sup: 0, pension: 0, other: 0, short: 0 };
+  var salFactor = (1 + infl) * (1 + p.salaryGrowth);
+  var share = p.couple ? 0.5 : 1;   /* joint holdings, split for tax */
+  var ix = 1, sf = 1;               /* carried forward, not re-powered each year */
+
+  for (var t = 0; t < years; t++){
+    var age = p.age + t;
+    var tIx = p.indexTax ? ix : 1;
+    var working = age < retire;
+    var senior  = age >= AU.pensionAge;
+    var access  = age >= AU.preservationAge;
+    var retPhase = !working && access;          /* super supporting a pension */
+    var g = seq ? seq[t] : p.ret;
+
+    var sal  = working ? p.salary * sf : 0;
+    var psal = working ? p.partnerSalary * sf : 0;
+    var spend = (working ? p.spendNow : p.spendRet) * ix;
+
+    var itemIn = 0, itemOut = 0;
+    for (var q = 0; q < p.items.length; q++){
+      var it = p.items[q];
+      if (!it.amt || age < it.from || age > it.to) continue;
+      if (it.kind === 'in') itemIn += it.amt * ix; else itemOut += it.amt * ix;
+    }
+
+    /* ---- contributions ---- */
+    var sac = 0, sgA = 0, sgB = 0;
+    if (working){
+      sac = Math.min(p.sacrifice * ix, Math.max(0, sal * 0.95));
+      sgA = Math.min(sal,  AU.maxContribBase * ix) * p.sg;
+      sgB = Math.min(psal, AU.maxContribBase * ix) * p.sg;
+    }
+    var concA = sgA + sac, concB = sgB, conc = concA + concB;
+    var cap = AU.concessionalCap * ix;
+    var exA = Math.max(0, concA - cap), exB = Math.max(0, concB - cap);
+    if (exA + exB > 1 && exA + exB > capBreach) capBreach = exA + exB;
+    var contribTax = conc * AU.contribTax;
+
+    /* ---- what the outside-super money pays out this year ---- */
+    var dist = out * p.distYield;
+    var credit = dist * p.franked * (AU.frankingRate / (1 - AU.frankingRate));
+    var gainFrac = out > 1 ? clamp((out - cb) / out, 0, 1) : 0;
+
+    /* ---- age pension, assessed on what you hold at the start of the year ---- */
+    var pension = (p.agePension && senior)
+      ? agePensionFor(sup + out, sal + psal + itemIn, p.couple, p.homeowner, ix) : 0;
+
+    /* ---- settle the year's cash flow ---- */
+    var outW = 0, supW = 0, short = 0, tax = 0, d293 = 0, gap = 0, discGain = 0, netCash = 0, tiA = 0;
+    for (var pass = 0; pass < 6; pass++){
+      var prevW = outW;
+      discGain = outW * gainFrac * AU.cgtDiscount;
+      var inv = dist + credit + discGain;
+      var invA = inv * share;
+      var penA = pension * share;
+      var itmA = itemIn * share;
+      tiA = Math.max(0, sal - sac) + invA + penA + itmA + exA;
+      var taxA = Math.max(0, personalTax(tiA, senior, p.couple, tIx) - exA * AU.contribTax);
+      var taxB = 0, d293B = 0;
+      if (p.couple){
+        var tiB = psal + (inv - invA) + (pension - penA) + (itemIn - itmA) + exB;
+        taxB = Math.max(0, personalTax(tiB, senior, true, tIx) - exB * AU.contribTax);
+        d293B = div293(tiB, concB);
+      }
+      tax = taxA + taxB - credit;          /* franking credits are refundable */
+      d293 = div293(tiA, concA) + d293B;
+      netCash = sal + psal - sac + pension + itemIn - tax - d293;
+      gap = spend + itemOut - netCash;
+
+      var availO = Math.max(0, out), availS = Math.max(0, sup);
+      if (gap <= 0){
+        outW = 0; supW = 0;
+      } else if (!access){                            /* the bridge: outside super only */
+        outW = Math.min(gap, availO); supW = 0;
+      } else if (p.drawOrder === 'out'){
+        outW = Math.min(gap, availO);
+        supW = Math.min(gap - outW, availS);
+      } else if (p.drawOrder === 'even'){
+        var pool = availO + availS;
+        if (pool <= 0){ outW = 0; supW = 0; }
+        else {
+          outW = Math.min(availO, gap * availO / pool);
+          supW = Math.min(availS, gap * availS / pool);
+          var rem = gap - outW - supW;
+          if (rem > 0){
+            var addO = Math.min(rem, availO - outW); outW += addO; rem -= addO;
+            supW += Math.min(rem, availS - supW);
+          }
+        }
+      } else {                                        /* super first */
+        supW = Math.min(gap, availS);
+        outW = Math.min(gap - supW, availO);
+      }
+      short = Math.max(0, gap - outW - supW);
+      if (Math.abs(outW - prevW) < 0.25) break;
+    }
+    var surplus = gap < 0 ? -gap : 0;
+
+    /* ---- the minimum the pension has to pay you, once it is a pension ---- */
+    var minW = retPhase ? sup * minDrawRate(age) : 0;
+    var forced = 0;
+    if (minW > supW){ forced = Math.min(sup, minW) - supW; supW += forced; }
+
+    /* ---- roll forward ---- */
+    var supOpen = sup, outOpen = out, cbOpen = cb;
+    var supFlow = (conc - contribTax) - supW;
+    var supEarn = Math.max(0, supOpen + supFlow / 2) * (g - p.feeSuper);
+    var supTax  = retPhase ? 0 : supEarn * AU.superEarnTax;
+    sup = Math.max(0, supOpen + supFlow + supEarn - supTax);
+
+    var outFlow = surplus + forced + dist - outW;
+    var capG = Math.max(0, outOpen + outFlow / 2) * (g - p.feeOut) - dist;
+    var cbOut = outOpen > 1 ? outW * (cbOpen / outOpen) : 0;
+    out = Math.max(0, outOpen + outFlow + capG);
+    cb  = clamp(cbOpen + surplus + forced + dist - cbOut, 0, out);
+
+    if (short > 1 && !fail){
+      fail = { age: age, kind: working ? 'overspend' : (access ? 'depleted' : 'bridge') };
+    }
+    if (!working){
+      fund.out += outW; fund.sup += supW - forced;
+      fund.pension += pension; fund.other += itemIn; fund.short += short;
+      if (!access){ bridgeSpend += outW; bridgeYears++; }
+    }
+    if (age === retire) atRetire = { age: age, sup: supOpen, out: outOpen, total: supOpen + outOpen, t: t };
+    taxTotal += tax; contribTaxTotal += contribTax; d293Total += d293; superEarnTaxTotal += supTax;
+
+    if (totals) totals[t] = supOpen + outOpen;
+    if (keep) rows.push({
+      t: t, age: age, ix: ix, g: g,
+      sal: sal + psal, sac: sac, conc: conc, contribTax: contribTax, d293: d293,
+      tax: tax, dist: dist, credit: credit, discGain: discGain, supTax: supTax,
+      spend: spend + itemOut, short: short, pension: pension, itemIn: itemIn, itemOut: itemOut,
+      outW: outW, supW: supW - forced, forced: forced, minW: minW, surplus: surplus,
+      netCash: netCash, ti: tiA, mtr: marginalRate(tiA, senior, p.couple, tIx),
+      supOpen: supOpen, outOpen: outOpen, totalOpen: supOpen + outOpen,
+      sup: sup, out: out, total: sup + out,
+      working: working, access: access, retPhase: retPhase, closing: false
+    });
+    ix *= (1 + infl); sf *= salFactor;
+  }
+
+  /* one closing point so a chart can reach the end of the plan */
+  var endIx = ix;
+  if (totals) totals[years] = sup + out;
+  if (keep) rows.push({
+    t: years, age: p.age + years, ix: endIx, g: 0,
+    sal: 0, sac: 0, conc: 0, contribTax: 0, d293: 0, tax: 0, dist: 0, credit: 0, discGain: 0, supTax: 0,
+    spend: 0, short: 0, pension: 0, itemIn: 0, itemOut: 0,
+    outW: 0, supW: 0, forced: 0, minW: 0, surplus: 0, netCash: 0, ti: 0, mtr: 0,
+    supOpen: sup, outOpen: out, totalOpen: sup + out,
+    sup: sup, out: out, total: sup + out,
+    working: false, access: true, retPhase: true, closing: true
+  });
+
+  return {
+    p: p, retire: retire, years: years, rows: rows, fail: fail, ok: !fail,
+    atRetire: atRetire, endSup: sup, endOut: out, endTotal: sup + out, endIx: endIx,
+    fund: fund, bridgeSpend: bridgeSpend, bridgeYears: bridgeYears, capBreach: capBreach,
+    taxTotal: taxTotal, contribTaxTotal: contribTaxTotal, d293Total: d293Total,
+    superEarnTaxTotal: superEarnTaxTotal
+  };
+}
+
+/* The earliest age that still gets you to the end of the plan. Retiring later
+   is monotonically better here — more contributions, fewer drawing years — so
+   the first age that works is the answer. */
+function earliestAge(p){
+  var scratch = { retireAge: 0, light: true };
+  for (var a = Math.max(p.age, 25); a <= 80; a++){
+    scratch.retireAge = a;
+    if (!project(p, scratch).fail) return a;
+  }
+  return null;
+}
+
+/* ================================================================
+   3. A THOUSAND OTHER MARKETS
+   Fixed seed, so the same inputs always draw the same fan. Each run gets a
+   fresh return for every year, and the whole plan — tax, drawdown, pension,
+   minimum pension payments — is re-run against it.
+   ================================================================ */
+function mulberry32(a){
+  return function(){
+    a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function gaussPair(rnd){
+  var u = 1 - rnd(), v = rnd();
+  var m = Math.sqrt(-2 * Math.log(u));
+  return [m * Math.cos(6.283185307179586 * v), m * Math.sin(6.283185307179586 * v)];
+}
+var PCT = [10, 25, 50, 75, 90];
+function monteCarlo(p, paths){
+  var years = Math.max(1, Math.round(p.planTo - p.age));
+  var n = years + 1;
+  var cols = [];
+  for (var y = 0; y < n; y++) cols.push(new Float64Array(paths));
+  var rnd = mulberry32(0x5AFE1E7D);
+  var seq = new Float64Array(years);
+  var totals = new Float64Array(n);
+  var opt = { returns: seq, totals: totals, light: true };
+  var ok = 0, ruin = [], spare = null;
+  for (var i = 0; i < paths; i++){
+    for (var y2 = 0; y2 < years; y2++){
+      var z;
+      if (spare != null){ z = spare; spare = null; }
+      else { var pr = gaussPair(rnd); z = pr[0]; spare = pr[1]; }
+      seq[y2] = Math.max(-0.7, p.ret + p.vol * z);
+    }
+    var r = project(p, opt);
+    for (var y3 = 0; y3 < n; y3++) cols[y3][i] = totals[y3];
+    if (r.fail) ruin.push(r.fail.age); else ok++;
+  }
+  var bands = PCT.map(function(){ return new Array(n); });
+  for (var y4 = 0; y4 < n; y4++){
+    var c = cols[y4];
+    c.sort();
+    for (var b = 0; b < PCT.length; b++){
+      var pos = clamp(Math.round((PCT[b] / 100) * (paths - 1)), 0, paths - 1);
+      bands[b][y4] = c[pos];
+    }
+  }
+  ruin.sort(function(a, b){ return a - b; });
+  return {
+    paths: paths, ok: ok, rate: ok / paths, bands: bands,
+    medianRuin: ruin.length ? ruin[Math.floor(ruin.length / 2)] : null,
+    worstRuin: ruin.length ? ruin[0] : null
+  };
+}
+/* --- engine:end --- */
+
+/* ================================================================
+   4. STATE
+   ================================================================ */
+var DEFAULTS = {
+  age: 38, retireAge: 55, planTo: 92, situation: 'single', homeowner: true,
+  partnerSalary: 0, partnerSuper: 0,
+  salary: 120000, salaryGrowth: 1, sg: 12, sacrifice: 0,
+  spendNow: 70000, spendRet: 70000,
+  superBal: 150000, outBal: 80000, outGain: 0,
+  ret: 7.5, feeSuper: 0.6, feeOut: 0.2, inflation: 2.5, vol: 12,
+  drawOrder: 'super', agePension: true, indexTax: true, swr: 4,
+  distYield: 2.5, franked: 40,
+  x1k: 'out', x1a: 0, x1f: 60, x1t: 75,
+  x2k: 'in',  x2a: 0, x2f: 55, x2t: 67,
+  basis: 'real', patterns: false
+};
+var LIMITS = {
+  age: [18, 70], retireAge: [25, 80], planTo: [70, 105],
+  partnerSalary: [0, 2000000], partnerSuper: [0, 10000000],
+  salary: [0, 2000000], salaryGrowth: [0, 10], sg: [0, 30], sacrifice: [0, 200000],
+  spendNow: [0, 2000000], spendRet: [0, 2000000],
+  superBal: [0, 10000000], outBal: [0, 20000000], outGain: [0, 20000000],
+  ret: [0, 20], feeSuper: [0, 5], feeOut: [0, 5], inflation: [0, 15], vol: [0, 40],
+  swr: [1, 10], distYield: [0, 12], franked: [0, 100],
+  x1a: [0, 1000000], x1f: [18, 105], x1t: [18, 105],
+  x2a: [0, 1000000], x2f: [18, 105], x2t: [18, 105]
+};
+var SHORT = {
+  age:'a', retireAge:'ra', planTo:'pl', situation:'st', homeowner:'ho',
+  partnerSalary:'p1', partnerSuper:'p2',
+  salary:'sl', salaryGrowth:'sw', sg:'sg', sacrifice:'sc',
+  spendNow:'s1', spendRet:'s2',
+  superBal:'b1', outBal:'b2', outGain:'b3',
+  ret:'rr', feeSuper:'f1', feeOut:'f2', inflation:'in', vol:'vo',
+  drawOrder:'do', agePension:'ap', indexTax:'ix', swr:'wr',
+  distYield:'dy', franked:'fk',
+  x1k:'e0', x1a:'e1', x1f:'e2', x1t:'e3',
+  x2k:'e7', x2a:'e4', x2f:'e5', x2t:'e6',
+  basis:'bs', patterns:'pt'
+};
+var INT_KEYS   = { age:1, retireAge:1, planTo:1, x1f:1, x1t:1, x2f:1, x2t:1 };
+var MONEY_KEYS = { partnerSalary:1, partnerSuper:1, salary:1, sacrifice:1, spendNow:1,
+                   spendRet:1, superBal:1, outBal:1, outGain:1, x1a:1, x2a:1 };
+var BOOL_KEYS  = { homeowner:1, agePension:1, indexTax:1, patterns:1 };
+var ENUMS = {
+  situation: ['single', 'couple'], drawOrder: ['super', 'out', 'even'],
+  x1k: ['out', 'in'], x2k: ['out', 'in'], basis: ['real', 'nominal']
+};
+var state = Object.assign({}, DEFAULTS);
+
+/* You cannot retire before today and the plan cannot end before next year, so
+   the ages are reconciled in the state itself — a form that shows 25 while the
+   projection quietly uses 38 would be lying to whoever is reading it. */
+function reconcile(){
+  state.age = clamp(Math.round(state.age), LIMITS.age[0], LIMITS.age[1]);
+  state.retireAge = clamp(Math.round(state.retireAge), state.age, LIMITS.retireAge[1]);
+  state.planTo = clamp(Math.round(state.planTo), Math.max(state.age + 1, LIMITS.planTo[0]), LIMITS.planTo[1]);
+}
+function params(s){
+  var couple = s.situation === 'couple';
+  return {
+    age: s.age, retireAge: Math.max(s.age, s.retireAge), planTo: Math.max(s.age + 1, s.planTo),
+    couple: couple, homeowner: !!s.homeowner,
+    salary: s.salary, partnerSalary: couple ? s.partnerSalary : 0,
+    partnerSuper: couple ? s.partnerSuper : 0,
+    salaryGrowth: s.salaryGrowth / 100, sg: s.sg / 100, sacrifice: s.sacrifice,
+    spendNow: s.spendNow, spendRet: s.spendRet,
+    superBal: s.superBal, outBal: s.outBal, outGain: Math.min(s.outGain, s.outBal),
+    ret: s.ret / 100, feeSuper: s.feeSuper / 100, feeOut: s.feeOut / 100,
+    inflation: s.inflation / 100, vol: s.vol / 100,
+    drawOrder: s.drawOrder, agePension: !!s.agePension, indexTax: !!s.indexTax,
+    distYield: s.distYield / 100, franked: s.franked / 100,
+    items: [
+      { kind: s.x1k, amt: s.x1a, from: Math.min(s.x1f, s.x1t), to: Math.max(s.x1f, s.x1t) },
+      { kind: s.x2k, amt: s.x2a, from: Math.min(s.x2f, s.x2t), to: Math.max(s.x2f, s.x2t) }
+    ]
+  };
+}
+
+/* ---- URL + storage ---------------------------------------------- */
+var STORE_KEY = 'aufire.v1';
+
+function encodeState(){
+  var out = [];
+  Object.keys(SHORT).forEach(function(k){
+    var v = state[k];
+    if (typeof v === 'boolean') v = v ? 1 : 0;
+    out.push(SHORT[k] + '=' + encodeURIComponent(v));
+  });
+  return out.join('&');
+}
+function applyRaw(obj){
+  var inv = {};
+  Object.keys(SHORT).forEach(function(k){ inv[SHORT[k]] = k; });
+  Object.keys(obj).forEach(function(sk){
+    var key = inv[sk] || (SHORT[sk] ? sk : null);
+    if (!key) return;
+    var raw = obj[sk];
+    if (ENUMS[key]){ if (ENUMS[key].indexOf(raw) >= 0) state[key] = raw; return; }
+    if (BOOL_KEYS[key]){ state[key] = (raw === '1' || raw === 'true'); return; }
+    var n = parseFloat(String(raw).replace(/,/g, ''));
+    if (!isFinite(n)) return;
+    var lim = LIMITS[key];
+    state[key] = lim ? clamp(n, lim[0], lim[1]) : n;
+    if (INT_KEYS[key]) state[key] = Math.round(state[key]);
+  });
+  reconcile();
+}
+function parseHash(){
+  var h = location.hash.replace(/^#/, '');
+  if (!h) return false;
+  var obj = {}, got = false;
+  h.split('&').forEach(function(kv){
+    var i = kv.indexOf('=');
+    if (i > 0){ obj[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); got = true; }
+  });
+  if (got) applyRaw(obj);
+  return got;
+}
+function persist(){
+  var enc = encodeState();
+  try { history.replaceState(null, '', '#' + enc); } catch(e){ location.hash = enc; }
+  try { localStorage.setItem(STORE_KEY, enc); } catch(e){}
+}
+function loadStored(){
+  var s = null;
+  try { s = localStorage.getItem(STORE_KEY); } catch(e){}
+  if (!s) return false;
+  var obj = {};
+  s.split('&').forEach(function(kv){
+    var i = kv.indexOf('=');
+    if (i > 0) obj[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1));
+  });
+  applyRaw(obj);
+  return true;
+}
+
+/* ================================================================
+   5. FORMATTING
+   ================================================================ */
+var nfPlain = null;
+try { nfPlain = new Intl.NumberFormat('en-AU', { maximumFractionDigits: 0 }); } catch(e){ nfPlain = null; }
+function plain(v){
+  v = Math.round(v || 0);
+  return nfPlain ? nfPlain.format(v) : String(v);
+}
+function money(v){
+  if (!isFinite(v)) return '—';
+  return (v < 0 ? '-' : '') + 'A$' + plain(Math.abs(v));
+}
+/* Compact for axes, tiles and captions: A$1.24M, A$450k, A$9,800 */
+function moneyC(v){
+  if (!isFinite(v)) return '—';
+  var neg = v < 0, a = Math.abs(v), s;
+  if (a >= 1e9)      s = trim(a / 1e9) + 'B';
+  else if (a >= 1e6) s = trim(a / 1e6) + 'M';
+  else if (a >= 1e4) s = trim(a / 1e3) + 'k';
+  else               s = plain(a);
+  return (neg ? '-' : '') + 'A$' + s;
+  function trim(n){
+    var d = n < 10 ? 2 : n < 100 ? 1 : 0;
+    return String(parseFloat(n.toFixed(d)));
+  }
+}
+function fmtPct(v, d){
+  var m = Math.pow(10, d == null ? 2 : d);
+  return (Math.round(v * m) / m) + '%';
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function plural(n, one, many){ return n === 1 ? one : (many || one + 's'); }
+
+/* ================================================================
+   6. CHART PRIMITIVES
+   ================================================================ */
+function $(s){ return document.querySelector(s); }
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function txt(tag, cls, s){
+  var e = document.createElement(tag);
+  e.className = cls; e.textContent = s;
+  return e;
+}
+function r1(n){ return Math.round(n * 10) / 10; }
+
+/* Everything the engine produces is in actual dollars; this is the only place
+   the display basis is applied. Each row carries its own deflator. */
+function dv(v, row){ return state.basis === 'real' ? v / row.ix : v; }
+/* Lifetime sums have to be deflated year by year on their own dates, or a
+   total in today's money would silently mean something else than the column
+   it sits under. */
+function fundSums(sim){
+  var f = { out:0, sup:0, pension:0, other:0, short:0, tax:0, spend:0 };
+  sim.rows.forEach(function(rw){
+    if (rw.working || rw.closing) return;
+    f.out     += dv(rw.outW, rw);
+    f.sup     += dv(rw.supW, rw);
+    f.pension += dv(rw.pension, rw);
+    f.other   += dv(rw.itemIn, rw);
+    f.short   += dv(rw.short, rw);
+    f.tax     += dv(rw.tax, rw);
+    f.spend   += dv(rw.spend, rw);
+  });
+  return f;
+}
+function basisNote(){ return state.basis === 'real' ? " in today's money" : ''; }
+
+var PLAN_SERIES = [
+  { key:'outOpen', name:'Outside super', v:'--s1', pat:45,  desc:'sellable at any age' },
+  { key:'supOpen', name:'Super',         v:'--s2', pat:135, desc:'locked until 60' }
+];
+var INC_SERIES = [
+  { key:'outW',    name:'Sold outside super', v:'--s1',        pat:45 },
+  { key:'supW',    name:'Super pension',      v:'--s2',        pat:135 },
+  { key:'pension', name:'Age pension',        v:'--s3',        pat:90 },
+  { key:'itemIn',  name:'Other income',       v:'--muted-bar', pat:0 }
+];
+
+function niceTicks(max, target){
+  if (!(max > 0) || !isFinite(max)) return [0, 1];
+  var raw = max / Math.max(2, target);
+  var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  var n = raw / mag;
+  var step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  var count = Math.max(1, Math.ceil(max / step - 1e-9));
+  var out = [];
+  for (var i = 0; i <= count; i++) out.push(i * step);
+  return out;
+}
+/* Age axis: round multiples of 5 or 10 inside the span, always both ends. */
+function ageTicks(from, to, room){
+  var span = to - from;
+  var step = span / 10 > 8 ? 20 : span / 10 > 4 ? 10 : span > 12 ? 5 : span > 5 ? 2 : 1;
+  if (room && room < 420 && step < 10) step = step * 2;
+  var out = [from];
+  var first = Math.ceil((from + step * 0.4) / step) * step;
+  for (var v = first; v < to - step * 0.35; v += step) out.push(v);
+  out.push(to);
+  return out;
+}
+function patternDefs(list, cols){
+  var d = '';
+  list.forEach(function(sr, i){
+    var c = cols[sr.v];
+    d += '<pattern id="' + sr.pid + '" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(' + sr.pat + ')">' +
+         '<rect width="7" height="7" fill="' + c + '" opacity="0.3"></rect>' +
+         '<line x1="0" y1="0" x2="0" y2="7" stroke="' + c + '" stroke-width="2.6"></line></pattern>';
+  });
+  d += '<pattern id="patShort" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(135)">' +
+       '<line x1="0" y1="0" x2="0" y2="6" stroke="' + cols['--danger'] + '" stroke-width="1.7" opacity="0.9"></line></pattern>';
+  return '<defs>' + d + '</defs>';
+}
+function seriesFill(sr, cols){ return state.patterns ? 'url(#' + sr.pid + ')' : cols[sr.v]; }
+/* An SVG pattern of vertical lines rotated t degrees draws stripes that a CSS
+   repeating-linear-gradient reproduces at t + 90 degrees, because the CSS angle
+   is the gradient's direction and the stripes run across it. Get that wrong and
+   the legend key is a mirror image of the mark it stands for. */
+function swatchCSS(sr){
+  return state.patterns
+    ? 'repeating-linear-gradient(' + ((sr.pat + 90) % 180) + 'deg,' + cssv(sr.v) + ' 0 2px,transparent 2px 5px),' + cssv(sr.v) + '55'
+    : cssv(sr.v);
+}
+function placeTip(tip, ctx, sx, sy){
+  var sr = ctx.svg.getBoundingClientRect(), wr = ctx.wrap.getBoundingClientRect();
+  var kx = sr.width / ctx.W, ky = sr.height / ctx.H;
+  var px = (sr.left - wr.left) + sx * kx;
+  var py = (sr.top - wr.top) + sy * ky;
+  var tw = tip.offsetWidth || 200, th = tip.offsetHeight || 120;
+  var left = px + 16;
+  if (left + tw > wr.width - 6) left = px - tw - 16;
+  tip.style.left = Math.max(6, left) + 'px';
+  tip.style.top = clamp(py - th / 2, 6, Math.max(6, wr.height - th - 6)) + 'px';
+}
+function showTip(id){
+  var t = $(id);
+  t.classList.add('on');
+  t.setAttribute('aria-hidden', 'false');
+}
+function hideTip(id){
+  var t = $(id);
+  t.classList.remove('on');
+  t.setAttribute('aria-hidden', 'true');
+}
+function tipRow(tip, keyCSS, name, value, cls){
+  var el = document.createElement('div');
+  el.className = 'tr' + (cls ? ' ' + cls : '');
+  if (keyCSS !== null){
+    var k = document.createElement('span');
+    k.className = 'tk';
+    k.style.background = keyCSS;
+    el.appendChild(k);
+  }
+  el.appendChild(txt('span', 'tn', name));
+  el.appendChild(txt('span', 'tv', value));
+  tip.appendChild(el);
+  return el;
+}
+/* A reference mark never takes a categorical colour, so the milestone rules
+   are ink and the label rides a surface-coloured halo to stay readable
+   wherever it lands. */
+function milestone(s, x, top, h, label, cols){
+  s.push('<line x1="' + r1(x) + '" y1="' + top + '" x2="' + r1(x) + '" y2="' + (top + h) +
+         '" stroke="' + cols['--ink-3'] + '" stroke-width="1" stroke-dasharray="3 4" opacity="0.95"></line>');
+  s.push('<text x="' + r1(x) + '" y="' + (top - 4) + '" text-anchor="middle" font-size="10" font-weight="600" fill="' +
+         cols['--ink-2'] + '" stroke="' + cols['--card'] + '" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">' +
+         esc(label) + '</text>');
+}
+PLAN_SERIES.forEach(function(sr, i){ sr.pid = 'pP' + i; });
+INC_SERIES.forEach(function(sr, i){ sr.pid = 'pI' + i; });
+
+/* ================================================================
+   7. CHART — YOUR MONEY, YEAR BY YEAR  (stacked area + crosshair)
+   ================================================================ */
+var P = null;
+
+function renderPlan(sim){
+  var wrap = $('#planWrap'), svg = $('#planSvg');
+  var W = Math.max(300, Math.round(wrap.clientWidth - 24));
+  var narrow = W < 620;
+  var H = W < 520 ? 264 : 342;
+  var L = narrow ? 52 : 64, R = narrow ? 16 : 118, T = 30, B = 42;
+  var plotW = W - L - R, plotH = H - T - B;
+  var cols = {};
+  ['--s1','--s2','--s3','--card','--grid','--ink','--ink-2','--ink-3','--danger','--hair','--muted-bar','--accent'].forEach(function(k){ cols[k] = cssv(k); });
+
+  var rows = sim.rows;
+  var a0 = sim.p.age, a1 = sim.p.planTo, span = Math.max(1, a1 - a0);
+  var T1 = [], T2 = [], dmax = 0;
+  rows.forEach(function(rw){
+    var o = dv(rw.outOpen, rw), sp = dv(rw.supOpen, rw);
+    T1.push(o); T2.push(o + sp);
+    if (o + sp > dmax) dmax = o + sp;
+  });
+  if (dmax <= 0) dmax = 100000;
+
+  var ticks = niceTicks(dmax, W < 520 ? 4 : 5);
+  var domain = ticks[ticks.length - 1] || 1;
+  var X = function(i){ return L + ((rows[i].age - a0) / span) * plotW; };
+  var XA = function(age){ return L + ((clamp(age, a0, a1) - a0) / span) * plotW; };
+  var Y = function(v){ return T + plotH - (clamp(v, 0, domain) / domain) * plotH; };
+
+  function area(hi, lo){
+    var d = '', i;
+    for (i = 0; i < rows.length; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(hi[i]));
+    for (i = rows.length - 1; i >= 0; i--) d += 'L' + r1(X(i)) + ' ' + r1(Y(lo ? lo[i] : 0));
+    return d + 'Z';
+  }
+  function line(arr){
+    var d = '';
+    for (var i = 0; i < arr.length; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(arr[i]));
+    return d;
+  }
+
+  var s = [];
+  s.push(patternDefs(PLAN_SERIES, cols));
+  ticks.forEach(function(tv){
+    var y = r1(Y(tv));
+    s.push('<line x1="' + L + '" y1="' + y + '" x2="' + (L + plotW) + '" y2="' + y +
+           '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+    s.push('<text x="' + (L - 9) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + esc(tv === 0 ? '0' : moneyC(tv)) + '</text>');
+  });
+  ageTicks(a0, a1, plotW).forEach(function(ag){
+    s.push('<text x="' + r1(XA(ag)) + '" y="' + (T + plotH + 18) + '" text-anchor="middle" font-size="10.5" fill="' +
+           cols['--ink-3'] + '" style="font-variant-numeric:tabular-nums">' + ag + '</text>');
+  });
+  s.push('<text x="' + (L + plotW / 2) + '" y="' + (T + plotH + 35) + '" text-anchor="middle" font-size="10" fill="' + cols['--ink-3'] + '">your age</text>');
+
+  /* stacked bands, bottom to top: outside super, then super on top of it */
+  s.push('<path d="' + area(T1, null) + '" fill="' + seriesFill(PLAN_SERIES[0], cols) + '" fill-opacity="' + (state.patterns ? 1 : 0.55) + '"></path>');
+  s.push('<path d="' + area(T2, T1) + '" fill="' + seriesFill(PLAN_SERIES[1], cols) + '" fill-opacity="' + (state.patterns ? 1 : 0.55) + '"></path>');
+  /* 2px surface gap does the separating — never a border around a mark */
+  s.push('<path d="' + line(T1) + '" fill="none" stroke="' + cols['--card'] + '" stroke-width="2"></path>');
+  s.push('<path d="' + line(T2) + '" fill="none" stroke="' + cols['--s2'] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>');
+
+  /* milestones, in priority order, each skipped if it would sit on the last */
+  var marks = [], placedX = [];
+  marks.push({ age: sim.retire, label: 'stop at ' + sim.retire });
+  if (AU.preservationAge > a0 && AU.preservationAge < a1) marks.push({ age: AU.preservationAge, label: 'super at 60' });
+  if (sim.p.agePension && AU.pensionAge > a0 && AU.pensionAge < a1) marks.push({ age: AU.pensionAge, label: 'pension at 67' });
+  marks.forEach(function(m){
+    if (m.age <= a0 || m.age >= a1) return;
+    var x = XA(m.age);
+    for (var i = 0; i < placedX.length; i++) if (Math.abs(placedX[i] - x) < (narrow ? 62 : 74)) return;
+    placedX.push(x);
+    milestone(s, x, T, plotH, m.label, cols);
+  });
+  if (sim.fail){
+    var fx = XA(sim.fail.age);
+    s.push('<line x1="' + r1(fx) + '" y1="' + T + '" x2="' + r1(fx) + '" y2="' + (T + plotH) +
+           '" stroke="' + cols['--danger'] + '" stroke-width="1.5" stroke-dasharray="4 3"></line>');
+    s.push('<text x="' + r1(fx) + '" y="' + (T + plotH - 6) + '" text-anchor="' + (fx > L + plotW * 0.7 ? 'end' : 'start') +
+           '" dx="' + (fx > L + plotW * 0.7 ? -5 : 5) + '" font-size="10.5" font-weight="700" fill="' + cols['--danger'] +
+           '" stroke="' + cols['--card'] + '" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">' +
+           esc('runs out at ' + sim.fail.age) + '</text>');
+  }
+
+  /* direct labels in the right gutter, top-down with collision skip */
+  if (!narrow){
+    var lx = L + plotW + 9, placed = [];
+    var put = function(y, label, fill, weight, size){
+      y = clamp(y, T + 8, T + plotH);
+      for (var i = 0; i < placed.length; i++) if (Math.abs(placed[i] - y) < 13) return;
+      placed.push(y);
+      s.push('<text x="' + lx + '" y="' + r1(y) + '" font-size="' + (size || 10.5) + '" font-weight="' + (weight || 400) +
+             '" fill="' + fill + '">' + esc(label) + '</text>');
+    };
+    var n = rows.length - 1;
+    put(Y(T2[n]) - 6, moneyC(T2[n]), cols['--ink'], 700, 12);
+    var mids = [
+      { y: (Y(T1[n]) + Y(T2[n])) / 2, h: Y(T1[n]) - Y(T2[n]), name: PLAN_SERIES[1].name },
+      { y: (Y(0)     + Y(T1[n])) / 2, h: Y(0)     - Y(T1[n]), name: PLAN_SERIES[0].name }
+    ];
+    mids.forEach(function(m){ if (m.h >= 17) put(m.y + 3, m.name, cols['--ink-3']); });
+  }
+
+  /* The peak is the whole point of the chart once the tail is spent down, and
+     it sits somewhere in the middle of the plot — naming it in the right
+     gutter would put the words at the right age's height but the wrong age,
+     so it is labelled on the mark itself. */
+  var pk = 0;
+  for (var pi = 1; pi < T2.length; pi++) if (T2[pi] > T2[pk]) pk = pi;
+  if (pk > 0 && pk < rows.length - 1 && T2[pk] > T2[rows.length - 1] * 1.08){
+    var px = X(pk), py = clamp(Y(T2[pk]) - 10, T + 13, T + plotH);
+    var anch = px > L + plotW * 0.78 ? 'end' : px < L + plotW * 0.22 ? 'start' : 'middle';
+    s.push('<text x="' + r1(px) + '" y="' + r1(py) + '" text-anchor="' + anch + '" font-size="10.5" font-weight="700" fill="' +
+           cols['--ink'] + '" stroke="' + cols['--card'] + '" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">' +
+           esc('peak ' + moneyC(T2[pk])) + '</text>');
+  }
+
+  s.push('<g id="pHover"></g>');
+  s.push('<rect x="' + L + '" y="' + T + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" pointer-events="all"></rect>');
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', 'Super and outside-super balances by age, as a stacked area chart. Use the left and right arrow keys to step through it.');
+  svg.innerHTML = s.join('');
+
+  P = { svg:svg, wrap:wrap, rows:rows, T1:T1, T2:T2, L:L, T:T, plotW:plotW, plotH:plotH,
+        W:W, H:H, domain:domain, a0:a0, a1:a1, span:span, cols:cols, i:-1, sim:sim };
+
+  var pk2 = 0;
+  for (var j = 1; j < T2.length; j++) if (T2[j] > T2[pk2]) pk2 = j;
+  $('#planDesc').textContent =
+    'Stacked area chart of your total assets by age' + basisNote() + '. Super is locked until 60 and is drawn on top; ' +
+    'everything you can sell before then is drawn underneath. The total peaks at ' + money(T2[pk2]) +
+    ' around age ' + rows[pk2].age + ' and ends at ' + money(T2[T2.length - 1]) + ' at age ' + a1 + '.' +
+    (sim.fail ? ' The money runs out at age ' + sim.fail.age + '.' : '') +
+    ' The table below carries every value.';
+  $('#planSub').textContent = 'Super and everything outside it, from today to age ' + a1 + basisNote() + '.';
+}
+
+function planAt(i){
+  if (!P || !P.rows.length) return;
+  i = clamp(i | 0, 0, P.rows.length - 1);
+  P.i = i;
+  var rw = P.rows[i], c = P.cols;
+  var x = P.L + ((rw.age - P.a0) / P.span) * P.plotW;
+  var Y = function(v){ return P.T + P.plotH - (clamp(v, 0, P.domain) / P.domain) * P.plotH; };
+  var h = [];
+  h.push('<line x1="' + r1(x) + '" y1="' + P.T + '" x2="' + r1(x) + '" y2="' + (P.T + P.plotH) +
+         '" stroke="' + c['--ink-3'] + '" stroke-width="1" opacity="0.65"></line>');
+  [[P.T1[i], '--s1'], [P.T2[i], '--s2']].forEach(function(pr){
+    h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(pr[0])) + '" r="4.5" fill="' + c[pr[1]] +
+           '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  });
+  var layer = P.svg.querySelector('#pHover');
+  if (layer) layer.innerHTML = h.join('');
+
+  var tip = $('#planTip');
+  tip.textContent = '';
+  tip.appendChild(txt('div', 'th', 'Age ' + rw.age + (state.basis === 'real' ? " · today's money" : '')));
+  tipRow(tip, null, 'Everything you have', money(dv(rw.totalOpen, rw)), 'tot');
+  tipRow(tip, swatchCSS(PLAN_SERIES[1]), PLAN_SERIES[1].name, money(dv(rw.supOpen, rw)));
+  tipRow(tip, swatchCSS(PLAN_SERIES[0]), PLAN_SERIES[0].name, money(dv(rw.outOpen, rw)));
+  if (!rw.closing){
+    if (rw.working){
+      tipRow(tip, null, 'Into super', money(dv(rw.conc - rw.contribTax, rw)));
+      tipRow(tip, null, rw.surplus > 0 ? 'Invested outside' : 'Drawn down', money(dv(rw.surplus > 0 ? rw.surplus : rw.outW + rw.supW, rw)));
+      tipRow(tip, null, 'Income tax', money(dv(rw.tax + rw.d293, rw)));
+    } else {
+      tipRow(tip, null, 'Spending', money(dv(rw.spend, rw)));
+      if (rw.pension > 0) tipRow(tip, null, 'Age pension', money(dv(rw.pension, rw)));
+      tipRow(tip, null, 'Drawn from savings', money(dv(rw.outW + rw.supW + rw.forced, rw)));
+      if (rw.tax > 1 || rw.tax < -1) tipRow(tip, null, 'Income tax', money(dv(rw.tax, rw)));
+    }
+    var note = null;
+    if (rw.short > 1) note = 'Short by ' + money(dv(rw.short, rw)) + ' — there is nothing left to sell.';
+    else if (!rw.working && !rw.access) note = 'On the bridge: super is still locked, so this all comes from outside it.';
+    else if (rw.retPhase && rw.minW > 0 && rw.forced > 1) note = 'The minimum pension payment forces out ' + money(dv(rw.forced, rw)) + ' more than you need; it is reinvested outside super.';
+    else if (rw.age === P.sim.retire) note = 'The first year without a salary.';
+    if (note){
+      var nd = document.createElement('div');
+      nd.className = 'note';
+      nd.textContent = note;
+      tip.appendChild(nd);
+    }
+  }
+  placeTip(tip, P, x, Y(P.T2[i]));
+  showTip('#planTip');
+  $('#planLive').textContent = 'Age ' + rw.age + ': total ' + money(dv(rw.totalOpen, rw)) +
+    ', super ' + money(dv(rw.supOpen, rw)) + ', outside super ' + money(dv(rw.outOpen, rw));
+}
+
+/* ================================================================
+   8. CHART — IF YOU STOPPED AT A DIFFERENT AGE  (range bars)
+   ================================================================
+   Each bar starts at a candidate retirement age and ends where the money
+   does, so the axis is age rather than a quantity and there is no baseline
+   to distort. The hatch is the part of the plan that goes unfunded.
+   ================================================================ */
+var A = null;
+
+function renderAges(sim){
+  var wrap = $('#ageWrap'), svg = $('#ageSvg');
+  var W = Math.max(300, Math.round(wrap.clientWidth - 24));
+  var narrow = W < 560;
+  var cols = {};
+  ['--accent','--muted-bar','--grid','--ink','--ink-2','--ink-3','--card','--danger','--ok','--hair'].forEach(function(k){ cols[k] = cssv(k); });
+
+  var p = sim.p, a0 = p.age, a1 = p.planTo;
+  var lo = Math.max(p.age, 25);
+  var seen = {}, cands = [];
+  [-10, -5, -2, 0, 2, 5, 10].forEach(function(o){
+    var a = Math.round(clamp(sim.retire + o, lo, 80));
+    if (a > a1) return;
+    if (!seen[a]){ seen[a] = 1; cands.push(a); }
+  });
+  cands.sort(function(x, y){ return x - y; });
+
+  var bars = cands.map(function(a){
+    var r = project(p, { retireAge: a, light: true });
+    return {
+      age: a, ok: !r.fail, lastsTo: r.fail ? r.fail.age : a1, kind: r.fail ? r.fail.kind : null,
+      left: r.endTotal, endIx: r.endIx,
+      atRetire: r.atRetire ? r.atRetire.total : null,
+      atRetireDisp: r.atRetire ? (state.basis === 'real'
+        ? r.atRetire.total / Math.pow(1 + p.inflation, r.atRetire.t) : r.atRetire.total) : null,
+      isCur: a === sim.retire
+    };
+  });
+
+  var rowH = narrow ? 30 : 34;
+  var T = 26, B = 40, L = narrow ? 74 : 92, R = narrow ? 14 : 86;
+  var H = T + bars.length * rowH + B;
+  var plotW = W - L - R, plotH = bars.length * rowH;
+  var X = function(age){ return L + ((clamp(age, a0, a1) - a0) / Math.max(1, a1 - a0)) * plotW; };
+
+  var s = [];
+  s.push('<defs><pattern id="patGap" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(135)">' +
+         '<line x1="0" y1="0" x2="0" y2="6" stroke="' + cols['--danger'] + '" stroke-width="1.7" opacity="0.9"></line></pattern></defs>');
+  ageTicks(a0, a1, plotW).forEach(function(ag){
+    var x = r1(X(ag));
+    s.push('<line x1="' + x + '" y1="' + T + '" x2="' + x + '" y2="' + (T + plotH) +
+           '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+    s.push('<text x="' + x + '" y="' + (T + plotH + 17) + '" text-anchor="middle" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + ag + '</text>');
+  });
+  s.push('<text x="' + (L + plotW / 2) + '" y="' + (T + plotH + 34) + '" text-anchor="middle" font-size="10" fill="' + cols['--ink-3'] + '">your age</text>');
+  [[AU.preservationAge, 'super at 60'], [AU.pensionAge, 'pension at 67']].forEach(function(m){
+    if (m[0] <= a0 || m[0] >= a1) return;
+    if (m[0] === AU.pensionAge && !p.agePension) return;
+    milestone(s, X(m[0]), T, plotH, m[1], cols);
+  });
+
+  var bh = Math.min(18, rowH - 12);
+  bars.forEach(function(b, k){
+    var y = T + k * rowH + (rowH - bh) / 2;
+    var x0 = X(b.age), x1 = X(b.lastsTo), x2 = X(a1);
+    s.push('<text x="' + (L - 10) + '" y="' + r1(y + bh / 2 + 4) + '" text-anchor="end" font-size="11.5" font-weight="' +
+           (b.isCur ? 700 : 400) + '" fill="' + (b.isCur ? cols['--ink'] : cols['--ink-3']) + '">' +
+           esc((b.isCur ? 'Stop at ' : 'at ') + b.age) + '</text>');
+    s.push('<rect x="' + r1(x0) + '" y="' + r1(y) + '" width="' + Math.max(2, r1(x1 - x0)) + '" height="' + bh +
+           '" rx="3" fill="' + (b.isCur ? cols['--accent'] : cols['--muted-bar']) + '" opacity="' + (b.isCur ? 1 : 0.85) + '"></rect>');
+    if (!b.ok && x2 - x1 > 1){
+      s.push('<rect x="' + r1(x1) + '" y="' + r1(y) + '" width="' + r1(x2 - x1) + '" height="' + bh +
+             '" rx="3" fill="url(#patGap)" stroke="' + cols['--danger'] + '" stroke-width="1"></rect>');
+    }
+    var lbl = b.ok ? (narrow ? '' : moneyC(state.basis === 'real' ? b.left / b.endIx : b.left) + ' left')
+                   : (a1 - b.lastsTo) + ' ' + plural(a1 - b.lastsTo, 'yr') + ' short';
+    if (lbl && !narrow){
+      /* Put the shortfall inside the hatch where it fits, tuck it into the end
+         of the bar when the hatch is only a year or two wide, and fall back to
+         the gutter. A label sitting across the hatch's red edge is unreadable
+         however good the halo is. */
+      var lw = lbl.length * 5.9;
+      var lxx = x2 + 8, anch = 'start';
+      if (!b.ok){
+        if (x2 - x1 > lw + 14){ lxx = x1 + 8; }
+        else if (x1 - L > lw + 14){ lxx = x1 - 8; anch = 'end'; }
+      }
+      s.push('<text x="' + r1(lxx) + '" y="' + r1(y + bh / 2 + 4) + '" text-anchor="' + anch +
+             '" font-size="10.5" font-weight="' + (b.ok ? 400 : 700) +
+             '" fill="' + (b.ok ? cols['--ink-3'] : cols['--danger']) + '" stroke="' + cols['--card'] +
+             '" stroke-width="3" paint-order="stroke" stroke-linejoin="round">' + esc(lbl) + '</text>');
+    }
+    s.push('<rect x="' + L + '" y="' + r1(T + k * rowH) + '" width="' + plotW + '" height="' + rowH +
+           '" fill="transparent" pointer-events="all" class="aHit" data-i="' + k + '"></rect>');
+  });
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', 'One bar per candidate retirement age, running from that age to the age the money lasts to. Use the up and down arrow keys to step through it.');
+  svg.innerHTML = s.join('');
+
+  A = { svg:svg, wrap:wrap, bars:bars, L:L, T:T, plotW:plotW, plotH:plotH, W:W, H:H,
+        rowH:rowH, bh:bh, a0:a0, a1:a1, cols:cols, i:-1, X:X };
+
+  $('#ageDesc').textContent = 'Range chart. ' + bars.map(function(b){
+    return 'retiring at ' + b.age + (b.ok ? ' lasts to ' + b.lastsTo + ' with ' +
+      money(state.basis === 'real' ? b.left / b.endIx : b.left) + ' left' : ' runs out at ' + b.lastsTo);
+  }).join('; ') + '.';
+  $('#ageSub').textContent = 'Everything else held still — only the year you stop earning moves.';
+
+  var lg = $('#ageLegend');
+  lg.textContent = '';
+  var add = function(css, name, border){
+    var el = document.createElement('span');
+    el.className = 'lg';
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = css;
+    if (border) sw.style.border = '1px solid ' + cssv('--danger');
+    el.appendChild(sw);
+    el.appendChild(document.createTextNode(name));
+    lg.appendChild(el);
+  };
+  add(cssv('--accent'), 'Your choice — stopping at ' + sim.retire);
+  add(cssv('--muted-bar'), 'Other ages');
+  add('repeating-linear-gradient(45deg,' + cssv('--danger') + ' 0 2px,transparent 2px 5px)', 'Years the money does not reach', true);
+}
+
+function ageAt(k){
+  if (!A || !A.bars.length) return;
+  k = clamp(k | 0, 0, A.bars.length - 1);
+  A.i = k;
+  var b = A.bars[k];
+  var tip = $('#ageTip');
+  tip.textContent = '';
+  tip.appendChild(txt('div', 'th', 'Stop working at ' + b.age + (b.isCur ? ' · your choice' : '')));
+  tipRow(tip, null, 'Money lasts to', b.ok ? 'age ' + A.a1 + ' and beyond' : 'age ' + b.lastsTo, 'tot');
+  if (b.atRetire != null) tipRow(tip, null, 'Saved by then', money(b.atRetireDisp));
+  if (b.ok) tipRow(tip, null, 'Left at ' + A.a1, money(state.basis === 'real' ? b.left / b.endIx : b.left));
+  else tipRow(tip, null, 'Years unfunded', (A.a1 - b.lastsTo) + '');
+  if (!b.ok){
+    var nd = document.createElement('div');
+    nd.className = 'note';
+    nd.textContent = b.kind === 'bridge'
+      ? 'The outside-super money runs out before super unlocks at 60. Everything after that is stranded behind preservation age.'
+      : b.kind === 'overspend'
+        ? 'Spending already outruns your income and savings before you even stop working.'
+        : 'Both buckets are empty by then; only the age pension is left.';
+    tip.appendChild(nd);
+  }
+  placeTip(tip, A, A.X(b.ok ? A.a1 : b.lastsTo), A.T + k * A.rowH + A.rowH / 2);
+  showTip('#ageTip');
+  $('#ageLive').textContent = 'Stopping at ' + b.age + ': money lasts to age ' + (b.ok ? A.a1 : b.lastsTo);
+}
+
+/* ================================================================
+   9. CHART — WHAT YOU LIVE ON  (stacked area, retirement years only)
+   ================================================================
+   The stack is every dollar that arrives; the reference line is what you
+   actually spend. The sliver between them is the tax on the way through.
+   ================================================================ */
+var I = null;
+
+function renderIncome(sim){
+  var wrap = $('#incWrap'), svg = $('#incSvg');
+  var W = Math.max(300, Math.round(wrap.clientWidth - 24));
+  var narrow = W < 620;
+  var H = W < 520 ? 244 : 300;
+  var cols = {};
+  ['--s1','--s2','--s3','--muted-bar','--card','--grid','--ink','--ink-2','--ink-3','--danger'].forEach(function(k){ cols[k] = cssv(k); });
+  var rows = sim.rows.filter(function(rw){ return !rw.working && !rw.closing; });
+
+  if (rows.length < 2){
+    var msg = sim.retire >= sim.p.planTo
+      ? 'You keep working to the end of the plan, so there is nothing to draw here.'
+      : 'Only one year of retirement to show — move the retirement age or the end of the plan.';
+    svg.setAttribute('viewBox', '0 0 ' + W + ' 96');
+    svg.setAttribute('width', W); svg.setAttribute('height', 96);
+    svg.setAttribute('aria-label', msg);
+    svg.innerHTML = '<text x="' + (W / 2) + '" y="52" text-anchor="middle" font-size="12.5" fill="' + cols['--ink-3'] + '">' + esc(msg) + '</text>';
+    $('#incLegend').textContent = '';
+    $('#incDesc').textContent = msg;
+    $('#incSub').textContent = msg;
+    I = null;
+    return;
+  }
+
+  var L = narrow ? 52 : 64, R = narrow ? 16 : 108, T = 18, B = 42;
+  var plotW = W - L - R, plotH = H - T - B;
+  var a0 = rows[0].age, a1 = rows[rows.length - 1].age, span = Math.max(1, a1 - a0);
+
+  var STACK = [], dmax = 0;
+  rows.forEach(function(rw){
+    var v = [dv(rw.outW, rw), dv(rw.supW, rw), dv(rw.pension, rw), dv(rw.itemIn, rw)];
+    var cum = [], acc = 0;
+    for (var i = 0; i < v.length; i++){ acc += Math.max(0, v[i]); cum.push(acc); }
+    STACK.push(cum);
+    var sp = dv(rw.spend, rw);
+    if (acc > dmax) dmax = acc;
+    if (sp > dmax) dmax = sp;
+  });
+  if (dmax <= 0) dmax = 10000;
+
+  var ticks = niceTicks(dmax, 4);
+  var domain = ticks[ticks.length - 1] || 1;
+  var X = function(i){ return L + ((rows[i].age - a0) / span) * plotW; };
+  var XA = function(age){ return L + ((clamp(age, a0, a1) - a0) / span) * plotW; };
+  var Y = function(v){ return T + plotH - (clamp(v, 0, domain) / domain) * plotH; };
+  var lvl = function(k){ return rows.map(function(rw, i){ return k < 0 ? 0 : STACK[i][k]; }); };
+  var spendLine = rows.map(function(rw){ return dv(rw.spend, rw); });
+
+  function area(hi, lo){
+    var d = '', i;
+    for (i = 0; i < rows.length; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(hi[i]));
+    for (i = rows.length - 1; i >= 0; i--) d += 'L' + r1(X(i)) + ' ' + r1(Y(lo[i]));
+    return d + 'Z';
+  }
+  function line(arr){
+    var d = '';
+    for (var i = 0; i < arr.length; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(arr[i]));
+    return d;
+  }
+
+  var s = [];
+  s.push(patternDefs(INC_SERIES, cols));
+  ticks.forEach(function(tv){
+    var y = r1(Y(tv));
+    s.push('<line x1="' + L + '" y1="' + y + '" x2="' + (L + plotW) + '" y2="' + y +
+           '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+    s.push('<text x="' + (L - 9) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + esc(tv === 0 ? '0' : moneyC(tv)) + '</text>');
+  });
+  ageTicks(a0, a1, plotW).forEach(function(ag){
+    s.push('<text x="' + r1(XA(ag)) + '" y="' + (T + plotH + 18) + '" text-anchor="middle" font-size="10.5" fill="' +
+           cols['--ink-3'] + '" style="font-variant-numeric:tabular-nums">' + ag + '</text>');
+  });
+  s.push('<text x="' + (L + plotW / 2) + '" y="' + (T + plotH + 35) + '" text-anchor="middle" font-size="10" fill="' + cols['--ink-3'] + '">your age</text>');
+
+  for (var k = 0; k < INC_SERIES.length; k++){
+    s.push('<path d="' + area(lvl(k), lvl(k - 1)) + '" fill="' + seriesFill(INC_SERIES[k], cols) +
+           '" fill-opacity="' + (state.patterns ? 1 : 0.62) + '"></path>');
+    if (k < INC_SERIES.length - 1) s.push('<path d="' + line(lvl(k)) + '" fill="none" stroke="' + cols['--card'] + '" stroke-width="2"></path>');
+  }
+
+  /* The stack is gross money in and the line is what you spend, so the space
+     between them is tax — above the line when you pay it, below when franking
+     credits hand it back. Neutral ink: it is a difference, not a category. */
+  var gapTop = rows.map(function(rw, i){ return Math.max(STACK[i][3], spendLine[i]); });
+  var gapBot = rows.map(function(rw, i){ return Math.min(STACK[i][3], spendLine[i]); });
+  s.push('<path d="' + area(gapTop, gapBot) + '" fill="' + cols['--ink-3'] + '" fill-opacity="0.16"></path>');
+  if (rows.some(function(rw){ return rw.short > 1; })){
+    s.push('<path d="' + area(gapTop, lvl(3)) + '" fill="url(#patShort)" opacity="0.95"></path>');
+  }
+
+  /* spending is a reference mark: neutral ink, dashed, on a surface halo */
+  s.push('<path d="' + line(spendLine) + '" fill="none" stroke="' + cols['--card'] + '" stroke-width="6" opacity="0.85" stroke-linecap="round"></path>');
+  s.push('<path d="' + line(spendLine) + '" fill="none" stroke="' + cols['--ink'] + '" stroke-width="2" stroke-dasharray="5 3.5" stroke-linecap="round"></path>');
+
+  if (!narrow){
+    var lx = L + plotW + 9, placed = [];
+    var put = function(y, label, fill, weight, size){
+      y = clamp(y, T + 8, T + plotH);
+      for (var i = 0; i < placed.length; i++) if (Math.abs(placed[i] - y) < 12.5) return;
+      placed.push(y);
+      s.push('<text x="' + lx + '" y="' + r1(y) + '" font-size="' + (size || 10.5) + '" font-weight="' + (weight || 400) +
+             '" fill="' + fill + '">' + esc(label) + '</text>');
+    };
+    var n = rows.length - 1;
+    put(Y(spendLine[n]) - 6, 'Spending', cols['--ink'], 700, 11);
+    for (var m = INC_SERIES.length - 1; m >= 0; m--){
+      var top = STACK[n][m], bot = m > 0 ? STACK[n][m - 1] : 0;
+      if (Y(bot) - Y(top) >= 16) put((Y(top) + Y(bot)) / 2 + 3, INC_SERIES[m].name, cols['--ink-3']);
+    }
+  }
+
+  s.push('<g id="iHover"></g>');
+  s.push('<rect x="' + L + '" y="' + T + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" pointer-events="all"></rect>');
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', 'Stacked area chart of where your retirement income comes from, by age. Use the left and right arrow keys to step through it.');
+  svg.innerHTML = s.join('');
+
+  I = { svg:svg, wrap:wrap, rows:rows, STACK:STACK, spend:spendLine, L:L, T:T, plotW:plotW, plotH:plotH,
+        W:W, H:H, domain:domain, a0:a0, a1:a1, span:span, cols:cols, i:-1 };
+
+  var f = fundSums(sim), ftot = f.out + f.sup + f.pension + f.other;
+  $('#incDesc').textContent = 'Stacked area chart of retirement income sources from age ' + a0 + ' to ' + a1 +
+    basisNote() + '. Over the whole retirement, ' + money(f.out) + ' came from selling outside super, ' +
+    money(f.sup) + ' from the super pension, ' + money(f.pension) + ' from the age pension and ' +
+    money(f.other) + ' from other income, against ' + money(f.spend) + ' of spending. Tax over the same years came to ' +
+    money(f.tax) + (f.tax < 0 ? ', a net refund from franking credits' : '') + '.';
+  $('#incSub').textContent = 'Every dollar that arrives, from ' + a0 + ' on' + basisNote() +
+    '. The dashed line is what you spend' + (
+      f.short > 0.5 ? '; the hatched gap below it never arrives.'
+      : f.tax < 0 ? '; the band above it is tax handed back by franking credits.'
+      : '; the band between them is tax.');
+  if (ftot <= 0) $('#incSub').textContent = 'Nothing is drawn down in retirement on these numbers.';
+
+  var lg = $('#incLegend');
+  lg.textContent = '';
+  INC_SERIES.forEach(function(sr, i2){
+    var v = [f.out, f.sup, f.pension, f.other][i2];
+    if (i2 === 3 && v <= 0) return;
+    var el = document.createElement('span');
+    el.className = 'lg';
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = swatchCSS(sr);
+    el.appendChild(sw);
+    el.appendChild(document.createTextNode(sr.name));
+    el.appendChild(txt('span', 'val', money(v)));
+    lg.appendChild(el);
+  });
+  var sl = document.createElement('span');
+  sl.className = 'lg';
+  var sls = document.createElement('span');
+  sls.className = 'swl';
+  sls.style.background = 'repeating-linear-gradient(90deg,' + cssv('--ink') + ' 0 4px,transparent 4px 7px)';
+  sl.appendChild(sls);
+  sl.appendChild(document.createTextNode('What you spend'));
+  sl.appendChild(txt('span', 'val', money(f.spend)));
+  lg.appendChild(sl);
+  var tg = document.createElement('span');
+  tg.className = 'lg';
+  var tgs = document.createElement('span');
+  tgs.className = 'sw';
+  tgs.style.background = cssv('--ink-3');
+  tgs.style.opacity = '0.35';
+  tg.appendChild(tgs);
+  tg.appendChild(document.createTextNode(f.tax < 0 ? 'Tax refunded to you' : 'Tax on the way through'));
+  tg.appendChild(txt('span', 'val', money(Math.abs(f.tax))));
+  lg.appendChild(tg);
+  if (f.short > 1){
+    var sh = document.createElement('span');
+    sh.className = 'lg';
+    var shs = document.createElement('span');
+    shs.className = 'sw';
+    shs.style.background = 'repeating-linear-gradient(45deg,' + cssv('--danger') + ' 0 2px,transparent 2px 5px)';
+    shs.style.border = '1px solid ' + cssv('--danger');
+    sh.appendChild(shs);
+    sh.appendChild(document.createTextNode('Spending you cannot fund'));
+    sh.appendChild(txt('span', 'val', money(f.short)));
+    lg.appendChild(sh);
+  }
+}
+
+function incomeAt(i){
+  if (!I || !I.rows.length) return;
+  i = clamp(i | 0, 0, I.rows.length - 1);
+  I.i = i;
+  var rw = I.rows[i], c = I.cols;
+  var x = I.L + ((rw.age - I.a0) / I.span) * I.plotW;
+  var Y = function(v){ return I.T + I.plotH - (clamp(v, 0, I.domain) / I.domain) * I.plotH; };
+  var h = [];
+  h.push('<line x1="' + r1(x) + '" y1="' + I.T + '" x2="' + r1(x) + '" y2="' + (I.T + I.plotH) +
+         '" stroke="' + c['--ink-3'] + '" stroke-width="1" opacity="0.65"></line>');
+  h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(I.spend[i])) + '" r="4" fill="' + c['--ink'] +
+         '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  var lay = I.svg.querySelector('#iHover');
+  if (lay) lay.innerHTML = h.join('');
+
+  var tip = $('#incTip');
+  tip.textContent = '';
+  tip.appendChild(txt('div', 'th', 'Age ' + rw.age + (state.basis === 'real' ? " · today's money" : '')));
+  tipRow(tip, null, 'What you spend', money(dv(rw.spend, rw)), 'tot');
+  var vals = [rw.outW, rw.supW, rw.pension, rw.itemIn];
+  INC_SERIES.forEach(function(sr, k){
+    if (vals[k] <= 0.5) return;
+    tipRow(tip, swatchCSS(sr), sr.name, money(dv(vals[k], rw)));
+  });
+  if (rw.tax > 1 || rw.tax < -1) tipRow(tip, null, rw.tax < 0 ? 'Tax refunded' : 'Tax on the way through', money(Math.abs(dv(rw.tax, rw))));
+  if (rw.short > 1){
+    var nd = document.createElement('div');
+    nd.className = 'note';
+    nd.textContent = 'Short by ' + money(dv(rw.short, rw)) + ' this year.';
+    tip.appendChild(nd);
+  }
+  placeTip(tip, I, x, Y(I.STACK[i][3]));
+  showTip('#incTip');
+  $('#incLive').textContent = 'Age ' + rw.age + ': spending ' + money(dv(rw.spend, rw)) + ', from ' +
+    INC_SERIES.map(function(sr, k){ return sr.name + ' ' + money(dv(vals[k], rw)); }).join(', ');
+}
+
+/* ================================================================
+   10. CHART — IF MARKETS MISBEHAVE  (percentile fan)
+   ================================================================
+   One hue, four opacities and a median line: the bands are ordered, not
+   categorical, so they must not read as four different things. The steady
+   projection rides over the top as a neutral reference.
+   ================================================================ */
+var M = null;
+
+function renderMC(sim, mc){
+  var wrap = $('#mcWrap'), svg = $('#mcSvg');
+  var W = Math.max(300, Math.round(wrap.clientWidth - 24));
+  var narrow = W < 620;
+  var H = W < 520 ? 244 : 300;
+  var L = narrow ? 52 : 64, R = narrow ? 16 : 96, T = 18, B = 42;
+  var plotW = W - L - R, plotH = H - T - B;
+  var cols = {};
+  ['--s1','--card','--grid','--ink','--ink-2','--ink-3','--danger','--ok','--accent'].forEach(function(k){ cols[k] = cssv(k); });
+  var a0 = sim.p.age, a1 = sim.p.planTo, span = Math.max(1, a1 - a0);
+  var rows = sim.rows;
+
+  if (!mc){
+    svg.setAttribute('viewBox', '0 0 ' + W + ' 96');
+    svg.setAttribute('width', W); svg.setAttribute('height', 96);
+    svg.innerHTML = '<text x="' + (W / 2) + '" y="52" text-anchor="middle" font-size="12.5" fill="' + cols['--ink-3'] +
+                    '">Running a thousand markets&hellip;</text>';
+    svg.setAttribute('aria-label', 'Running a thousand markets');
+    $('#mcLegend').textContent = '';
+    M = null;
+    return;
+  }
+
+  var det = rows.map(function(rw){ return dv(rw.totalOpen, rw); });
+  var bands = mc.bands.map(function(b){
+    return b.map(function(v, t){ return state.basis === 'real' ? v / Math.pow(1 + sim.p.inflation, t) : v; });
+  });
+  var dmax = 0;
+  bands[4].forEach(function(v){ if (v > dmax) dmax = v; });
+  det.forEach(function(v){ if (v > dmax) dmax = v; });
+  if (dmax <= 0) dmax = 100000;
+
+  var ticks = niceTicks(dmax, 4);
+  var domain = ticks[ticks.length - 1] || 1;
+  var n = bands[0].length;
+  var X = function(i){ return L + (i / Math.max(1, n - 1)) * plotW; };
+  var XA = function(age){ return L + ((clamp(age, a0, a1) - a0) / span) * plotW; };
+  var Y = function(v){ return T + plotH - (clamp(v, 0, domain) / domain) * plotH; };
+
+  function area(hi, lo){
+    var d = '', i;
+    for (i = 0; i < n; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(hi[i]));
+    for (i = n - 1; i >= 0; i--) d += 'L' + r1(X(i)) + ' ' + r1(Y(lo[i]));
+    return d + 'Z';
+  }
+  function line(arr){
+    var d = '';
+    for (var i = 0; i < arr.length; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(arr[i]));
+    return d;
+  }
+
+  var s = [];
+  ticks.forEach(function(tv){
+    var y = r1(Y(tv));
+    s.push('<line x1="' + L + '" y1="' + y + '" x2="' + (L + plotW) + '" y2="' + y +
+           '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+    s.push('<text x="' + (L - 9) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + esc(tv === 0 ? '0' : moneyC(tv)) + '</text>');
+  });
+  ageTicks(a0, a1, plotW).forEach(function(ag){
+    s.push('<text x="' + r1(XA(ag)) + '" y="' + (T + plotH + 18) + '" text-anchor="middle" font-size="10.5" fill="' +
+           cols['--ink-3'] + '" style="font-variant-numeric:tabular-nums">' + ag + '</text>');
+  });
+  s.push('<text x="' + (L + plotW / 2) + '" y="' + (T + plotH + 35) + '" text-anchor="middle" font-size="10" fill="' + cols['--ink-3'] + '">your age</text>');
+
+  s.push('<path d="' + area(bands[4], bands[0]) + '" fill="' + cols['--s1'] + '" fill-opacity="0.16"></path>');
+  s.push('<path d="' + area(bands[3], bands[1]) + '" fill="' + cols['--s1'] + '" fill-opacity="0.34"></path>');
+  /* thin edges so the bands survive greyscale and the pattern toggle */
+  [0, 1, 3, 4].forEach(function(b){
+    s.push('<path d="' + line(bands[b]) + '" fill="none" stroke="' + cols['--s1'] + '" stroke-width="1" opacity="0.5"' +
+           (state.patterns ? ' stroke-dasharray="2 2"' : '') + '></path>');
+  });
+  s.push('<path d="' + line(bands[2]) + '" fill="none" stroke="' + cols['--s1'] + '" stroke-width="2" stroke-linecap="round"></path>');
+  s.push('<path d="' + line(det) + '" fill="none" stroke="' + cols['--card'] + '" stroke-width="6" opacity="0.8" stroke-linecap="round"></path>');
+  s.push('<path d="' + line(det) + '" fill="none" stroke="' + cols['--ink'] + '" stroke-width="2" stroke-dasharray="5 3.5" stroke-linecap="round"></path>');
+
+  if (!narrow){
+    var lx = L + plotW + 9, placed = [];
+    var put = function(y, label, fill, weight) {
+      y = clamp(y, T + 8, T + plotH);
+      for (var i = 0; i < placed.length; i++) if (Math.abs(placed[i] - y) < 13) return;
+      placed.push(y);
+      s.push('<text x="' + lx + '" y="' + r1(y) + '" font-size="10.5" font-weight="' + (weight || 400) + '" fill="' + fill + '">' + esc(label) + '</text>');
+    };
+    put(Y(bands[4][n - 1]) + 3, 'best 10%', cols['--ink-3']);
+    put(Y(bands[2][n - 1]) + 3, 'median', cols['--ink-2'], 600);
+    put(Y(det[n - 1]) + 3, 'steady', cols['--ink'], 600);
+    put(Y(bands[0][n - 1]) + 3, 'worst 10%', cols['--ink-3']);
+  }
+
+  s.push('<g id="mHover"></g>');
+  s.push('<rect x="' + L + '" y="' + T + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" pointer-events="all"></rect>');
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', 'Fan chart of total assets by age across a thousand simulated return sequences. Use the left and right arrow keys to step through it.');
+  svg.innerHTML = s.join('');
+
+  M = { svg:svg, wrap:wrap, bands:bands, det:det, n:n, L:L, T:T, plotW:plotW, plotH:plotH,
+        W:W, H:H, domain:domain, a0:a0, a1:a1, cols:cols, i:-1, mc:mc };
+
+  $('#mcSub').textContent = 'The plan held together in ' + Math.round(mc.rate * 100) + '% of 1,000 return sequences' +
+    (mc.medianRuin ? ', and where it failed the money typically ran out around age ' + mc.medianRuin : '') + '.';
+  $('#mcDesc').textContent = 'Fan chart. Across 1,000 simulated return sequences the plan funded every year in ' +
+    Math.round(mc.rate * 100) + '% of them. At age ' + a1 + ' the median run ends with ' + money(bands[2][n - 1]) +
+    ', the worst tenth with ' + money(bands[0][n - 1]) + ' and the best tenth with ' + money(bands[4][n - 1]) + '.';
+
+  var lg = $('#mcLegend');
+  lg.textContent = '';
+  var addBand = function(op, name){
+    var el = document.createElement('span');
+    el.className = 'lg';
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = cssv('--s1');
+    sw.style.opacity = op;
+    el.appendChild(sw);
+    el.appendChild(document.createTextNode(name));
+    lg.appendChild(el);
+  };
+  addBand('0.34', 'Middle half of runs');
+  addBand('0.16', 'Middle 80% of runs');
+  var ml = document.createElement('span');
+  ml.className = 'lg';
+  var mls = document.createElement('span');
+  mls.className = 'swl';
+  mls.style.background = cssv('--s1');
+  ml.appendChild(mls);
+  ml.appendChild(document.createTextNode('Median run'));
+  ml.appendChild(txt('span', 'val', money(bands[2][n - 1])));
+  lg.appendChild(ml);
+  var dl = document.createElement('span');
+  dl.className = 'lg';
+  var dls = document.createElement('span');
+  dls.className = 'swl';
+  dls.style.background = 'repeating-linear-gradient(90deg,' + cssv('--ink') + ' 0 4px,transparent 4px 7px)';
+  dl.appendChild(dls);
+  dl.appendChild(document.createTextNode('Steady ' + fmtPct(state.ret) + ' every year'));
+  dl.appendChild(txt('span', 'val', money(det[n - 1])));
+  lg.appendChild(dl);
+}
+
+function mcAt(i){
+  if (!M) return;
+  i = clamp(i | 0, 0, M.n - 1);
+  M.i = i;
+  var c = M.cols, age = M.a0 + i;
+  var x = M.L + (i / Math.max(1, M.n - 1)) * M.plotW;
+  var Y = function(v){ return M.T + M.plotH - (clamp(v, 0, M.domain) / M.domain) * M.plotH; };
+  var h = [];
+  h.push('<line x1="' + r1(x) + '" y1="' + M.T + '" x2="' + r1(x) + '" y2="' + (M.T + M.plotH) +
+         '" stroke="' + c['--ink-3'] + '" stroke-width="1" opacity="0.65"></line>');
+  h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(M.bands[2][i])) + '" r="4.5" fill="' + c['--s1'] +
+         '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(M.det[i])) + '" r="4" fill="' + c['--ink'] +
+         '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  var lay = M.svg.querySelector('#mHover');
+  if (lay) lay.innerHTML = h.join('');
+
+  var tip = $('#mcTip');
+  tip.textContent = '';
+  tip.appendChild(txt('div', 'th', 'Age ' + age + (state.basis === 'real' ? " · today's money" : '')));
+  tipRow(tip, null, 'Median run', money(M.bands[2][i]), 'tot');
+  tipRow(tip, null, 'Best 10% above', money(M.bands[4][i]));
+  tipRow(tip, null, 'Upper quarter above', money(M.bands[3][i]));
+  tipRow(tip, null, 'Lower quarter below', money(M.bands[1][i]));
+  tipRow(tip, null, 'Worst 10% below', money(M.bands[0][i]));
+  tipRow(tip, 'repeating-linear-gradient(90deg,' + c['--ink'] + ' 0 4px,transparent 4px 7px)', 'Steady return', money(M.det[i]));
+  placeTip(tip, M, x, Y(M.bands[2][i]));
+  showTip('#mcTip');
+  $('#mcLive').textContent = 'Age ' + age + ': median ' + money(M.bands[2][i]) + ', worst tenth below ' +
+    money(M.bands[0][i]) + ', best tenth above ' + money(M.bands[4][i]);
+}
+
+/* ================================================================
+   11. HERO, TILES, TABLE
+   ================================================================ */
+function inkOn(hex){
+  var h = String(hex).replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length < 6) return '#ffffff';
+  var f = function(c){ c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  var lum = 0.2126 * f(parseInt(h.slice(0, 2), 16)) + 0.7152 * f(parseInt(h.slice(2, 4), 16)) + 0.0722 * f(parseInt(h.slice(4, 6), 16));
+  return lum > 0.42 ? '#14181c' : '#ffffff';
+}
+function rowAtAge(sim, age){
+  for (var i = 0; i < sim.rows.length; i++) if (sim.rows[i].age === age) return sim.rows[i];
+  return null;
+}
+function firstWorking(sim){
+  for (var i = 0; i < sim.rows.length; i++) if (sim.rows[i].working) return sim.rows[i];
+  return null;
+}
+var ICON_OK = '<path d="M20 6 9 17l-5-5"/>';
+var ICON_BAD = '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>';
+
+function renderSummary(sim, early, mc){
+  var p = sim.p, real = state.basis === 'real';
+  var k = real ? sim.endIx : 1;
+
+  /* ---------- hero: the earliest year you could stop ---------- */
+  $('#heroValue').textContent = early == null ? 'Not before 80'
+    : early <= p.age ? 'Right now' : 'Age ' + early;
+  var note = [];
+  if (early != null && early > p.age) note.push('<b>' + (early - p.age) + ' ' + plural(early - p.age, 'year') + '</b> from now');
+  if (early != null){
+    var er = project(p, { retireAge: early });
+    if (er.atRetire) note.push('with <b>' + esc(money(state.basis === 'real'
+      ? er.atRetire.total / Math.pow(1 + p.inflation, er.atRetire.t) : er.atRetire.total)) + '</b> behind you');
+  } else {
+    note.push('spending <b>' + esc(money(p.spendRet)) + '</b> a year needs more than this plan builds');
+  }
+  note.push('plan runs to <b>' + p.planTo + '</b>');
+  $('#heroNote').innerHTML = note.join(' &middot; ');
+
+  /* ---------- verdict: the age you actually chose ---------- */
+  var vd = $('#verdict'), vt = $('#verdictTxt');
+  var msg;
+  if (sim.ok){
+    vd.className = 'verdict ok';
+    $('#verdictIcon').innerHTML = ICON_OK;
+    msg = 'Stopping at ' + sim.retire + ' works. The money lasts to ' + p.planTo + ' with ' +
+          money(sim.endTotal / k) + ' still there' + (real ? " in today's money" : '') + '.';
+  } else {
+    vd.className = 'verdict bad';
+    $('#verdictIcon').innerHTML = ICON_BAD;
+    var gapYrs = p.planTo - sim.fail.age;
+    msg = sim.fail.kind === 'bridge'
+      ? 'Stopping at ' + sim.retire + ' breaks the bridge. The money you can actually reach runs out at ' +
+        sim.fail.age + ', and super stays locked until 60.'
+      : sim.fail.kind === 'overspend'
+        ? 'Spending already outruns your income at ' + sim.fail.age + ', before you stop working at all.'
+        : 'Stopping at ' + sim.retire + ' runs out of money at ' + sim.fail.age + ' — ' + gapYrs + ' ' +
+          plural(gapYrs, 'year') + ' short of the plan.';
+    if (early != null) msg += ' The earliest that holds is ' + early + '.';
+  }
+  if (mc) msg += ' It survived ' + Math.round(mc.rate * 100) + '% of a thousand market histories.';
+  vt.textContent = msg;
+
+  /* ---------- composition: where the retirement money comes from ---------- */
+  var f = fundSums(sim);
+  var segs = [
+    { cls:'s1', v: f.out,     name: INC_SERIES[0].name, css:'--s1', pat: 45 },
+    { cls:'s2', v: f.sup,     name: INC_SERIES[1].name, css:'--s2', pat: 135 },
+    { cls:'s3', v: f.pension, name: INC_SERIES[2].name, css:'--s3', pat: 90 },
+    { cls:'other', v: f.other, name: INC_SERIES[3].name, css:'--muted-bar', pat: 0 }
+  ].filter(function(sg){ return sg.v > 0.5; });
+  if (f.short > 0.5) segs.push({ cls:'under', v: f.short, name:'Never funded', css:'--danger' });
+  var sum = segs.reduce(function(a, sg){ return a + sg.v; }, 0) || 1;
+  var barW = Math.max(120, $('#compBar').clientWidth || 480);
+  /* a clipped label is worse than none, and a bar where only one segment is
+     named reads as an accident — so decide once, for all of them */
+  var namesFit = segs.every(function(sg){ return (sg.v / sum) * barW > (sg.name.length + 5) * 6.5 + 22; });
+  var bar = $('#compBar');
+  bar.textContent = '';
+  segs.forEach(function(sg){
+    var shareOf = sg.v / sum;
+    var el = document.createElement('div');
+    el.className = 'compseg ' + sg.cls;
+    el.style.flex = shareOf + ' 1 0';
+    if (state.patterns && sg.cls !== 'under'){
+      el.style.background = 'repeating-linear-gradient(' + ((sg.pat + 90) % 180) + 'deg,' + cssv(sg.css) +
+        ' 0 3px,transparent 3px 7px),' + cssv(sg.css) + '4d';
+    }
+    el.title = sg.name + ' — ' + money(sg.v) + ' (' + Math.round(shareOf * 100) + '%)';
+    var px = shareOf * barW, pctTxt = Math.round(shareOf * 100) + '%';
+    var label = namesFit ? sg.name + '  ' + pctTxt : pctTxt;
+    if (px > label.length * 6.5 + 16){
+      el.textContent = label;
+      el.style.color = (sg.cls === 'under' || state.patterns) ? cssv('--ink') : inkOn(cssv(sg.css));
+    }
+    bar.appendChild(el);
+  });
+  bar.setAttribute('aria-label', segs.length
+    ? 'Retirement money comes from ' + segs.map(function(sg){ return Math.round(sg.v / sum * 100) + '% ' + sg.name; }).join(', ')
+    : 'No retirement drawings in this plan');
+  $('#compCapL').textContent = segs.length ? 'Where the money to live on comes from, age ' + sim.retire + ' to ' + p.planTo : '';
+  $('#compCapR').textContent = !segs.length ? ''
+    : f.short > 0.5 ? money(sum - f.short) + ' funded · ' + money(f.short) + ' never arrives'
+    : money(sum) + ' over ' + (p.planTo - sim.retire) + ' years, tax included';
+
+  /* ---------- tiles ---------- */
+  var w0 = firstWorking(sim);
+  var srate = (w0 && w0.netCash > 0) ? w0.surplus / w0.netCash : null;
+  var past60 = p.age >= AU.preservationAge, past67 = p.age > AU.pensionAge;
+  var r60 = rowAtAge(sim, AU.preservationAge) || (past60 ? sim.rows[0] : null);
+  var apAge = Math.max(p.age, AU.pensionAge);
+  var rAp = rowAtAge(sim, apAge);
+  var apMax = (p.couple ? AU.ap.maxFn.couple : AU.ap.maxFn.single) * 26;
+  var firstPen = null;
+  for (var fi = 0; fi < sim.rows.length; fi++) if (sim.rows[fi].pension > 0.5){ firstPen = sim.rows[fi].age; break; }
+  var atR = sim.atRetire;
+  var swrNum = state.swr > 0 ? p.spendRet / (state.swr / 100) : 0;
+
+  var tiles = [];
+  tiles.push({ k:'Savings rate', v: srate == null ? '—' : fmtPct(srate * 100, 0),
+    m: w0 ? money(w0.surplus) + ' of ' + money(w0.netCash) + ' take-home, plus ' +
+            money(w0.conc - w0.contribTax) + ' landing in super'
+          : 'You are already retired in this plan' });
+  tiles.push({ k:'What you need by ' + sim.retire, dot:'', v: atR ? money(atR.total / (real ? Math.pow(1 + p.inflation, atR.t) : 1)) : '—',
+    m: atR ? money(atR.out / (real ? Math.pow(1 + p.inflation, atR.t) : 1)) + ' outside super + ' +
+             money(atR.sup / (real ? Math.pow(1 + p.inflation, atR.t) : 1)) + ' in super'
+           : 'You retire after the plan ends' });
+  tiles.push({ k:'The bridge to 60', dot:'s1',
+    v: sim.bridgeYears ? money(sim.bridgeSpend / (real ? Math.pow(1 + p.inflation, Math.max(0, sim.retire - p.age)) : 1)) : 'Not needed',
+    m: sim.bridgeYears ? sim.bridgeYears + ' ' + plural(sim.bridgeYears, 'year') + ' from ' + sim.retire +
+         ' to 60, every dollar from outside super'
+       : 'You stop at 60 or later, so super is already unlocked' });
+  tiles.push({ k: past60 ? 'Super you can already reach' : 'Super when it unlocks at 60', dot:'s2',
+    v: r60 ? money(dv(r60.supOpen, r60)) : '—',
+    m: !r60 ? 'outside the plan window'
+       : past60 ? 'already past preservation age, so none of it is locked'
+       : 'after 15% on the way in and 15% on earnings until then' });
+  tiles.push({ k:'Age pension ' + (past67 ? 'now' : 'at ' + AU.pensionAge), dot:'s3',
+    v: !p.agePension ? 'Not included' : rAp ? (rAp.pension > 0.5 ? money(dv(rAp.pension, rAp)) + '/yr' : 'Nil') : '—',
+    m: !p.agePension ? 'switched off in the settings'
+       : !rAp ? 'the plan ends before ' + AU.pensionAge
+       : rAp.pension >= apMax * Math.pow(1 + p.inflation, rAp.t) - 1 ? 'the full rate — your assets are under the threshold'
+       : rAp.pension > 0.5 ? 'a part rate, tapered by what you still hold'
+       : firstPen != null ? 'too well off for now — it starts at ' + firstPen
+       : 'assets stay above the cut-off for the whole plan' });
+  tiles.push({ k:'Money runs out', v: sim.fail ? 'Age ' + sim.fail.age : 'Never',
+    m: sim.fail ? (sim.fail.kind === 'bridge' ? 'the reachable money goes first' : (p.planTo - sim.fail.age) + ' years short of the plan')
+                : money(sim.endTotal / k) + ' left at ' + p.planTo, neg: !!sim.fail, pos: !sim.fail });
+  tiles.push({ k:'Held up in', v: mc ? fmtPct(mc.rate * 100, 0) + ' of markets' : 'working…',
+    m: mc ? '1,000 return sequences, ' + fmtPct(state.vol) + ' volatility' +
+            (mc.worstRuin ? ' · worst run ran dry at ' + mc.worstRuin : '')
+          : 'a thousand runs of the whole plan', pend: !mc,
+    pos: mc && mc.rate >= 0.85, neg: mc && mc.rate < 0.6 });
+  tiles.push({ k:'Rule of thumb says', v: money(swrNum),
+    m: fmtPct(state.swr) + ' of ' + money(p.spendRet) + ' a year — which ignores super access, tax and the pension' });
+  var allTax = function(rw){ return rw.tax + rw.d293 + rw.contribTax + rw.supTax; };
+  var tax0 = allTax(w0 || sim.rows[0]);
+  tiles.push({ k: tax0 < 0 ? 'Tax refunded this year' : 'Tax this year', v: money(Math.abs(tax0)), pos: tax0 < 0,
+    m: tax0 < 0 ? 'franking credits come back for more than the tax on your drawings'
+       : w0 ? fmtPct(w0.sal > 0 ? tax0 / (w0.sal + w0.conc) * 100 : 0, 0) +
+              ' of everything you earn, super included · ' + fmtPct(w0.mtr * 100, 0) + ' on your next dollar'
+       : 'income tax, plus 15% on earnings still inside super' });
+
+  var host = $('#tiles');
+  host.textContent = '';
+  tiles.forEach(function(ti){
+    var el = document.createElement('div');
+    el.className = 'panel tile';
+    var kk = document.createElement('div');
+    kk.className = 'k';
+    if (ti.dot) { var dd = document.createElement('span'); dd.className = 'dot ' + ti.dot; kk.appendChild(dd); }
+    kk.appendChild(document.createTextNode(ti.k));
+    el.appendChild(kk);
+    el.appendChild(txt('div', 'v' + (ti.neg ? ' neg' : ti.pos ? ' pos' : ti.pend ? ' pend' : ''), ti.v));
+    el.appendChild(txt('div', 'm', ti.m));
+    host.appendChild(el);
+  });
+
+  /* ---------- plan chart legend ---------- */
+  var lg = $('#planLegend');
+  lg.textContent = '';
+  /* The year you stop is the moment the chart is about; the end of the plan is
+     whatever is left, which for super is usually nothing. */
+  var at = sim.atRetire, atRow = at ? sim.rows[at.t] : sim.rows[sim.rows.length - 1];
+  var when = at ? ' at ' + sim.retire : ' at ' + atRow.age;
+  [dv(atRow.outOpen, atRow), dv(atRow.supOpen, atRow)].forEach(function(v, i){
+    var sr = PLAN_SERIES[i];
+    var el = document.createElement('span');
+    el.className = 'lg';
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = swatchCSS(sr);
+    el.appendChild(sw);
+    var desc = (i === 1 && past60) ? 'yours to draw on' : sr.desc;
+    el.appendChild(document.createTextNode(sr.name + ' — ' + desc));
+    el.appendChild(txt('span', 'val', money(v) + when));
+    lg.appendChild(el);
+  });
+
+  /* ---------- warning chip ---------- */
+  var chip = $('#warnChip');
+  if (sim.capBreach > 1){
+    chip.classList.add('on');
+    $('#warnTxt').textContent = money(sim.capBreach) + ' over the concessional cap at its worst — taxed at your marginal rate instead';
+  } else chip.classList.remove('on');
+}
+
+function syncHints(sim){
+  var p = sim.p;
+  $('#retireHint').textContent = sim.retire < AU.preservationAge
+    ? 'Preservation age is 60. Stopping at ' + sim.retire + ' means ' + (AU.preservationAge - sim.retire) +
+      ' ' + plural(AU.preservationAge - sim.retire, 'year') + ' funded entirely from outside super.'
+    : 'At ' + sim.retire + ' super is already unlocked, so there is no bridge to fund.';
+  var w0 = firstWorking(sim);
+  if (w0){
+    var cap = AU.concessionalCap;
+    var mine = state.sg / 100 * Math.min(state.salary, AU.maxContribBase) + state.sacrifice;
+    $('#capHint').innerHTML = 'Employer ' + esc(moneyC(state.sg / 100 * Math.min(state.salary, AU.maxContribBase))) +
+      ' + sacrifice ' + esc(moneyC(state.sacrifice)) + ' = <b>' + esc(moneyC(mine)) + '</b> against the ' +
+      esc(moneyC(cap)) + ' cap.';
+    $('#capHint').className = mine > cap + 1 ? 'hint flag' : 'hint';
+    $('#saveHint').innerHTML = w0.netCash > 0
+      ? 'That leaves <b>' + esc(money(w0.surplus)) + '</b> a year to invest — a <b>' +
+        esc(fmtPct(w0.surplus / w0.netCash * 100, 0)) + '</b> savings rate.'
+      : 'Nothing left over at this level of spending.';
+  } else {
+    $('#capHint').textContent = 'No working years in this plan.';
+    $('#capHint').className = 'hint';
+    $('#saveHint').textContent = 'No working years in this plan.';
+  }
+  var realR = (1 + state.ret / 100) / (1 + state.inflation / 100) - 1;
+  $('#realHint').innerHTML = 'After ' + esc(fmtPct(state.inflation)) + ' inflation that is <b>' +
+    esc(fmtPct(realR * 100)) + '</b> of real growth, before fees.';
+}
+
+var COLS = ['Age', 'Salary', 'Tax paid', 'Into super', 'Spending', 'Saved / drawn', 'Age pension', 'Super', 'Outside super', 'Total'];
+
+function renderTable(sim){
+  var head = $('#tableHead');
+  head.textContent = '';
+  COLS.forEach(function(c){
+    var th = document.createElement('th');
+    th.textContent = c;
+    th.setAttribute('scope', 'col');
+    head.appendChild(th);
+  });
+  var body = $('#tableBody');
+  body.textContent = '';
+  sim.rows.forEach(function(rw){
+    if (rw.closing) return;
+    var tr = document.createElement('tr');
+    if (rw.age === sim.retire) tr.className = 'mark';
+    if (rw.short > 1) tr.className = (tr.className ? tr.className + ' ' : '') + 'short';
+    [
+      String(rw.age),
+      rw.sal > 0 ? money(dv(rw.sal, rw)) : '—',
+      money(dv(rw.tax + rw.d293 + rw.contribTax + rw.supTax, rw)),
+      rw.conc > 0 ? money(dv(rw.conc - rw.contribTax, rw)) : '—',
+      money(dv(rw.spend, rw)),
+      (rw.outW + rw.supW) > 0.5 ? '-' + money(dv(rw.outW + rw.supW, rw))
+        : rw.surplus > 0.5 ? '+' + money(dv(rw.surplus, rw)) : '—',
+      rw.pension > 0.5 ? money(dv(rw.pension, rw)) : '—',
+      money(dv(rw.supOpen, rw)),
+      money(dv(rw.outOpen, rw)),
+      money(dv(rw.totalOpen, rw))
+    ].forEach(function(c, i){
+      var td = document.createElement('td');
+      td.textContent = c;
+      if (i === 9) td.className = 'em';
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+  /* Lifetime sums: each year is deflated on its own date, so the total means
+     the same thing as the column above it. */
+  var taxSum = 0, spendSum = 0, drawSum = 0, penSum = 0, intoSum = 0;
+  sim.rows.forEach(function(rw){
+    if (rw.closing) return;
+    taxSum   += dv(rw.tax + rw.d293 + rw.contribTax + rw.supTax, rw);
+    spendSum += dv(rw.spend, rw);
+    drawSum  += dv(rw.outW + rw.supW, rw);
+    penSum   += dv(rw.pension, rw);
+    intoSum  += dv(rw.conc - rw.contribTax, rw);
+  });
+  var lastRow = sim.rows[sim.rows.length - 1];
+  var tr2 = document.createElement('tr');
+  tr2.className = 'tot';
+  ['Whole plan', '—', money(taxSum), money(intoSum), money(spendSum), '-' + money(drawSum), money(penSum),
+   money(dv(lastRow.supOpen, lastRow)), money(dv(lastRow.outOpen, lastRow)), money(dv(lastRow.totalOpen, lastRow))
+  ].forEach(function(c, i){
+    var td = document.createElement('td');
+    td.textContent = c;
+    if (i === 9) td.className = 'em';
+    tr2.appendChild(td);
+  });
+  body.appendChild(tr2);
+
+  $('#tableSub').textContent = 'Balances are as at the start of each year' + basisNote() +
+    '. The highlighted row is the year you stop working.' +
+    (sim.fail ? ' Red rows are years the plan cannot fund.' : '');
+}
+
+/* ================================================================
+   12. EXPORT
+   ================================================================ */
+function csvCell(v){
+  var s = String(v == null ? '' : v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCSV(sim, early, mc){
+  var p = sim.p, real = state.basis === 'real';
+  var L = [];
+  L.push(['Australian FIRE calculator']);
+  L.push(['Generated', new Date().toISOString().slice(0, 10)]);
+  L.push(['Rates and thresholds', 'published figures for the ' + AU.fy + ' income year, indexed to inflation thereafter']);
+  L.push(['Figures shown in', real ? "today's money (inflation-adjusted)" : 'actual (nominal) dollars']);
+  L.push(['Disclaimer', 'General information and education only - not financial, superannuation or tax advice. ' +
+    'A hypothetical illustration built from the figures you entered, assuming steady average returns and unchanging law. ' +
+    'The age pension figure is an estimate, not an assessment. Provided "as is" with no warranty of any kind; no ' +
+    'responsibility or liability is accepted for any error, omission or loss arising from reliance on these figures. ' +
+    'Verify before acting and seek advice from a licensed professional.']);
+  L.push([]);
+  L.push(['Age now', p.age]);
+  L.push(['Stop working at', sim.retire]);
+  L.push(['Plan to age', p.planTo]);
+  L.push(['Household', p.couple ? 'couple' : 'single', p.homeowner ? 'homeowner' : 'non-homeowner']);
+  L.push(['Salary', p.salary, 'partner', p.partnerSalary]);
+  L.push(['Pay rises above inflation (%)', state.salaryGrowth]);
+  L.push(['Employer super (%)', state.sg]);
+  L.push(['Salary sacrifice', p.sacrifice]);
+  L.push(['Spending while working', p.spendNow]);
+  L.push(['Spending once retired', p.spendRet]);
+  L.push(['Super balance now', p.superBal, 'partner', p.partnerSuper]);
+  L.push(['Outside super now', p.outBal, 'unrealised gain', p.outGain]);
+  L.push(['Return before fees (%)', state.ret]);
+  L.push(['Fees (%)', 'super', state.feeSuper, 'outside', state.feeOut]);
+  L.push(['Inflation (%)', state.inflation]);
+  L.push(['Volatility (%)', state.vol]);
+  L.push(['Distribution yield (%)', state.distYield, 'franked (%)', state.franked]);
+  L.push(['After 60, spend from', p.drawOrder === 'super' ? 'super first' : p.drawOrder === 'out' ? 'outside super first' : 'both in proportion']);
+  L.push(['Age pension included', p.agePension ? 'yes' : 'no']);
+  L.push(['Tax thresholds indexed', p.indexTax ? 'yes' : 'no']);
+  p.items.forEach(function(it, i){
+    if (!it.amt) return;
+    L.push(['Extra cash flow ' + (i + 1), it.kind === 'in' ? 'income' : 'spending', it.amt, 'age ' + it.from + ' to ' + it.to]);
+  });
+  L.push([]);
+  L.push(['Earliest age that funds the whole plan', early == null ? 'none up to 80' : early]);
+  L.push(['Chosen age works', sim.ok ? 'yes' : 'no']);
+  if (sim.fail) L.push(['Money runs out at', sim.fail.age, sim.fail.kind]);
+  if (sim.atRetire) L.push(['Total at retirement', Math.round(sim.atRetire.total), 'outside super', Math.round(sim.atRetire.out), 'super', Math.round(sim.atRetire.sup)]);
+  L.push(['Bridge years', sim.bridgeYears, 'funded from outside super', Math.round(sim.bridgeSpend)]);
+  L.push(['Left at age ' + p.planTo, Math.round(sim.endTotal)]);
+  L.push(['Retirement funding (actual dollars)', 'sold outside super', Math.round(sim.fund.out),
+          'super pension', Math.round(sim.fund.sup), 'age pension', Math.round(sim.fund.pension),
+          'other income', Math.round(sim.fund.other), 'never funded', Math.round(sim.fund.short)]);
+  if (mc) L.push(['Plan funded in', Math.round(mc.rate * 1000) / 10 + '% of 1,000 simulated markets']);
+  L.push([]);
+  L.push(['Age', 'Salary', 'Concessional contributions', 'Contributions tax', 'Division 293', 'Income tax',
+          'Super earnings tax', 'Spending', 'Drawn from outside super', 'Drawn from super', 'Minimum pension forced out',
+          'Age pension', 'Other income', 'Shortfall', 'Super (start of year)', 'Outside super (start of year)', 'Total (start of year)']);
+  sim.rows.forEach(function(rw){
+    if (rw.closing) return;
+    var d = real ? rw.ix : 1;
+    L.push([rw.age, Math.round(rw.sal / d), Math.round(rw.conc / d), Math.round(rw.contribTax / d),
+            Math.round(rw.d293 / d), Math.round(rw.tax / d), Math.round(rw.supTax / d), Math.round(rw.spend / d),
+            Math.round(rw.outW / d), Math.round(rw.supW / d), Math.round(rw.forced / d), Math.round(rw.pension / d),
+            Math.round(rw.itemIn / d), Math.round(rw.short / d), Math.round(rw.supOpen / d),
+            Math.round(rw.outOpen / d), Math.round(rw.totalOpen / d)]);
+  });
+  var lr = sim.rows[sim.rows.length - 1];
+  var dl = real ? lr.ix : 1;
+  L.push([lr.age, '', '', '', '', '', '', '', '', '', '', '', '', '',
+          Math.round(lr.supOpen / dl), Math.round(lr.outOpen / dl), Math.round(lr.totalOpen / dl)]);
+  return L.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n');
+}
+function downloadCSV(){
+  var csv = buildCSV(currentSim, currentEarly, mcFor(currentSim.p));
+  var name = 'au-fire-' + currentSim.p.age + 'to' + currentSim.retire + '-' + currentSim.p.planTo + '.csv';
+  try {
+    var blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.parentNode.removeChild(a); }, 400);
+  } catch(e){
+    var w = window.open('', '_blank');
+    if (w){ w.document.title = name; w.document.body.style.whiteSpace = 'pre'; w.document.body.textContent = csv; }
+    else alert('Could not start the download — copy the table from the page instead.');
+  }
+}
+
+/* ================================================================
+   13. WIRING
+   ================================================================ */
+var MC_PATHS = 1000;
+var currentSim = null, currentEarly = null;
+var mcCache = { key: null, res: null }, mcTimer = 0;
+var rafId = 0, persistTimer = 0;
+
+function mcKey(p){ return JSON.stringify(p); }
+function mcFor(p){ return mcCache.key === mcKey(p) ? mcCache.res : null; }
+/* The fan costs a thousand full projections, so it waits for the slider to
+   settle rather than fighting every pointer move. */
+function scheduleMC(p){
+  if (mcFor(p)) return;
+  var key = mcKey(p);
+  clearTimeout(mcTimer);
+  mcTimer = setTimeout(function(){
+    if (mcKey(params(state)) !== key) return;
+    var res = monteCarlo(p, MC_PATHS);
+    mcCache = { key: key, res: res };
+    if (mcKey(params(state)) !== key) return;
+    renderMC(currentSim, res);
+    renderSummary(currentSim, currentEarly, res);
+  }, 170);
+}
+
+function render(){
+  var p = params(state);
+  currentSim = project(p);
+  currentEarly = earliestAge(p);
+  var mc = mcFor(p);
+  renderSummary(currentSim, currentEarly, mc);
+  renderPlan(currentSim);
+  renderAges(currentSim);
+  renderIncome(currentSim);
+  renderMC(currentSim, mc);
+  renderTable(currentSim);
+  syncHints(currentSim);
+  scheduleMC(p);
+}
+function scheduleRender(){
+  if (rafId) return;
+  rafId = requestAnimationFrame(function(){ rafId = 0; render(); });
+}
+function afterChange(){
+  scheduleRender();
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(persist, 400);
+}
+
+function displayValue(key){
+  if (MONEY_KEYS[key]) return plain(state[key]);
+  if (INT_KEYS[key]) return String(Math.round(state[key]));
+  return String(Math.round(state[key] * 100) / 100);
+}
+function syncOne(key){
+  var el = document.getElementById(key);
+  if (el) el.value = displayValue(key);
+  var rng = document.getElementById(key + '_r');
+  if (rng) rng.value = String(clamp(state[key], +rng.min, +rng.max));
+}
+var NUM_FIELDS = ['age','retireAge','planTo','partnerSalary','partnerSuper','salary','salaryGrowth','sg',
+  'sacrifice','spendNow','spendRet','superBal','outBal','outGain','ret','feeSuper','feeOut','inflation',
+  'vol','swr','distYield','franked','x1a','x1f','x1t','x2a','x2f','x2t'];
+
+function applyAgeRanges(){
+  var ra = document.getElementById('retireAge_r');
+  if (ra) ra.min = String(state.age);
+  var pt = document.getElementById('planTo_r');
+  if (pt) pt.min = String(Math.max(state.age + 1, LIMITS.planTo[0]));
+}
+function syncInputs(){
+  reconcile();
+  applyAgeRanges();
+  NUM_FIELDS.forEach(syncOne);
+  ['situation','drawOrder','x1k','x2k'].forEach(function(id){ document.getElementById(id).value = state[id]; });
+  Object.keys(BOOL_KEYS).forEach(function(id){ document.getElementById(id).checked = !!state[id]; });
+  document.getElementById(state.basis === 'real' ? 'basis-real' : 'basis-nom').checked = true;
+  $('#partnerFields').hidden = state.situation !== 'couple';
+  $('#x1field').classList.toggle('has-off', !state.x1a);
+  $('#x2field').classList.toggle('has-off', !state.x2a);
+}
+
+/* Rewrite a money field in place while it is being typed in, keeping the
+   caret the same number of digits from the left so the separators appearing
+   underneath never push it out of position. */
+function regroup(el, out){
+  var before = el.value.slice(0, el.selectionStart || 0).replace(/[^0-9]/g, '').length;
+  if (el.value === out) return;
+  el.value = out;
+  var pos = out.length, seen = 0;
+  if (before <= 0){
+    pos = 0;
+  } else {
+    for (var i = 0; i < out.length; i++){
+      var c = out.charCodeAt(i);
+      if (c >= 48 && c <= 57 && ++seen === before){ pos = i + 1; break; }
+    }
+  }
+  try { el.setSelectionRange(pos, pos); } catch(e){}
+}
+function onNumInput(el){
+  var key = el.getAttribute('data-key');
+  var isMoney = MONEY_KEYS[key];
+  /* money fields hold whole dollars, so strip every non-digit — the grouping
+     separator must never be mistaken for a decimal point */
+  var raw = isMoney ? el.value.replace(/[^0-9]/g, '') : el.value.replace(/[^0-9.]/g, '');
+  var n = parseFloat(raw);
+  if (!isFinite(n)) n = 0;
+  var lim = LIMITS[key] || [0, 1e12];
+  n = clamp(n, lim[0], lim[1]);
+  if (INT_KEYS[key]) n = Math.round(n);
+  state[key] = n;
+  if (isMoney) regroup(el, raw === '' ? '' : plain(n));
+  var rng = document.getElementById(key + '_r');
+  if (rng) rng.value = String(clamp(n, +rng.min, +rng.max));
+  if (key === 'x1a' || key === 'x2a') syncInputs();
+  else if (AGE_FIELDS[key]) syncAges(key);
+  afterChange();
+}
+function onRange(el){
+  var key = el.getAttribute('data-for');
+  var n = parseFloat(el.value);
+  if (INT_KEYS[key]) n = Math.round(n);
+  state[key] = n;
+  var inp = document.getElementById(key);
+  if (inp) inp.value = displayValue(key);
+  if (AGE_FIELDS[key]) syncAges(key);
+  afterChange();
+}
+var AGE_FIELDS = { age:1, retireAge:1, planTo:1 };
+/* Push the other two ages back into range, but never rewrite the field being
+   typed in — that would fight the cursor. */
+function syncAges(changed){
+  reconcile();
+  applyAgeRanges();
+  ['age','retireAge','planTo'].forEach(function(k){ if (k !== changed) syncOne(k); });
+}
+
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  var mt = document.querySelector('meta[name="theme-color"]');
+  if (mt) mt.setAttribute('content', t === 'dark' ? '#272B2F' : '#F8F8F8');
+  $('#themeTxt').textContent = t === 'dark' ? 'Light' : 'Dark';
+  $('#themeBtn').setAttribute('aria-pressed', String(t === 'light'));
+  $('#themeIcon').innerHTML = t === 'dark'
+    ? '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"></path>'
+    : '<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z"></path>';
+  try { localStorage.setItem('aufire.theme', t); } catch(e){}
+}
+
+/* ---- hover plumbing, one shape per chart ---- */
+function hoverX(ctx, clientX, n, at){
+  if (!ctx) return;
+  var sr = ctx.svg.getBoundingClientRect();
+  if (!sr.width) return;
+  var mx = (clientX - sr.left) * (ctx.W / sr.width);
+  var frac = (mx - ctx.L) / ctx.plotW;
+  at(Math.round(clamp(frac, 0, 1) * (n - 1)));
+}
+function clearHover(ctx, id){
+  if (!ctx) return;
+  var l = ctx.svg.querySelector(id);
+  if (l) l.innerHTML = '';
+  ctx.i = -1;
+}
+function arrowKeys(e, n, cur, at, tipId, vertical){
+  var step = e.shiftKey ? 5 : 1, i = cur < 0 ? (vertical ? 0 : n - 1) : cur, used = true;
+  var fwd = vertical ? 'ArrowDown' : 'ArrowRight', back = vertical ? 'ArrowUp' : 'ArrowLeft';
+  if (e.key === fwd || (vertical && e.key === 'ArrowRight')) i += step;
+  else if (e.key === back || (vertical && e.key === 'ArrowLeft')) i -= step;
+  else if (e.key === 'Home') i = 0;
+  else if (e.key === 'End') i = n - 1;
+  else if (e.key === 'Escape'){ hideTip(tipId); return true; }
+  else used = false;
+  if (!used) return false;
+  e.preventDefault();
+  at(clamp(i, 0, n - 1));
+  return true;
+}
+
+function init(){
+  var storedTheme = null;
+  try { storedTheme = localStorage.getItem('aufire.theme'); } catch(e){}
+  var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  setTheme(storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : (prefersLight ? 'light' : 'dark'));
+
+  if (!parseHash()) loadStored();
+  syncInputs();
+  render();
+  persist();
+
+  var form = $('#inputs');
+  form.addEventListener('submit', function(e){ e.preventDefault(); });
+  form.addEventListener('input', function(e){
+    var t = e.target;
+    if (t.type === 'range') onRange(t);
+    else if (t.getAttribute && t.getAttribute('data-kind')) onNumInput(t);
+  });
+  form.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.tagName !== 'SELECT' && t.type !== 'checkbox') return;
+    var key = t.getAttribute('data-key');
+    if (!key) return;
+    state[key] = (t.type === 'checkbox') ? t.checked : t.value;
+    if (key === 'situation') $('#partnerFields').hidden = state.situation !== 'couple';
+    afterChange();
+  });
+  form.addEventListener('focusin', function(e){
+    if (e.target.getAttribute && e.target.getAttribute('data-kind')) e.target.select();
+  });
+  form.addEventListener('focusout', function(e){
+    if (e.target.getAttribute && e.target.getAttribute('data-kind')) syncOne(e.target.getAttribute('data-key'));
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="basis"]'), function(r){
+    r.addEventListener('change', function(){
+      if (!this.checked) return;
+      state.basis = this.value;
+      afterChange();
+    });
+  });
+  $('#themeBtn').addEventListener('click', function(){
+    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    render();
+  });
+  $('#earliestBtn').addEventListener('click', function(){
+    if (currentEarly == null) return;
+    state.retireAge = currentEarly;
+    syncOne('retireAge');
+    render();
+    persist();
+  });
+  $('#resetBtn').addEventListener('click', function(){
+    var basis = state.basis, pat = state.patterns;
+    state = Object.assign({}, DEFAULTS, { basis: basis, patterns: pat });
+    syncInputs();
+    render();
+    persist();
+  });
+  var dLink = document.querySelector('a[href="#disclaimer"]');
+  if (dLink) dLink.addEventListener('click', function(e){
+    e.preventDefault();
+    var el = $('#disclaimer');
+    if (!el) return;
+    var slow = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { el.scrollIntoView({ behavior: slow ? 'auto' : 'smooth', block: 'start' }); }
+    catch(err){ el.scrollIntoView(); }
+  });
+  $('#printBtn').addEventListener('click', function(){ window.print(); });
+  $('#csvBtn').addEventListener('click', downloadCSV);
+  $('#linkBtn').addEventListener('click', function(){
+    clearTimeout(persistTimer); persist();
+    var url = location.href;
+    var say = function(msg){
+      $('#linkTxt').textContent = msg;
+      setTimeout(function(){ $('#linkTxt').textContent = 'Copy link'; }, 1900);
+    };
+    var fallback = function(){
+      var ta = document.createElement('textarea');
+      ta.value = url; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+      say(ok ? 'Copied' : 'Copy failed');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){ say('Copied'); }, fallback);
+    } else fallback();
+  });
+
+  /* ---- plan chart ---- */
+  var pw = $('#planWrap');
+  pw.addEventListener('pointermove', function(e){ hoverX(P, e.clientX, P ? P.rows.length : 0, planAt); });
+  pw.addEventListener('pointerdown', function(e){ hoverX(P, e.clientX, P ? P.rows.length : 0, planAt); });
+  pw.addEventListener('pointerleave', function(){ hideTip('#planTip'); clearHover(P, '#pHover'); });
+  $('#planSvg').addEventListener('keydown', function(e){
+    if (!P) return;
+    if (arrowKeys(e, P.rows.length, P.i, planAt, '#planTip', false) && e.key === 'Escape') clearHover(P, '#pHover');
+  });
+  $('#planSvg').addEventListener('focus', function(){ if (P && P.i < 0) planAt(P.rows.length - 1); });
+  $('#planSvg').addEventListener('blur', function(){ hideTip('#planTip'); clearHover(P, '#pHover'); });
+
+  /* ---- retirement-age chart: rows, so the pointer's y is what matters ---- */
+  var aw = $('#ageWrap');
+  var hoverAges = function(clientY){
+    if (!A) return;
+    var sr = A.svg.getBoundingClientRect();
+    if (!sr.height) return;
+    var my = (clientY - sr.top) * (A.H / sr.height);
+    var k = Math.floor((my - A.T) / A.rowH);
+    if (k < 0 || k >= A.bars.length){ hideTip('#ageTip'); return; }
+    ageAt(k);
+  };
+  aw.addEventListener('pointermove', function(e){ hoverAges(e.clientY); });
+  aw.addEventListener('pointerdown', function(e){ hoverAges(e.clientY); });
+  aw.addEventListener('pointerleave', function(){ hideTip('#ageTip'); });
+  $('#ageSvg').addEventListener('keydown', function(e){
+    if (!A) return;
+    arrowKeys(e, A.bars.length, A.i, ageAt, '#ageTip', true);
+  });
+  $('#ageSvg').addEventListener('focus', function(){ if (A && A.i < 0) ageAt(0); });
+  $('#ageSvg').addEventListener('blur', function(){ hideTip('#ageTip'); });
+
+  /* ---- income chart ---- */
+  var iw = $('#incWrap');
+  iw.addEventListener('pointermove', function(e){ if (I) hoverX(I, e.clientX, I.rows.length, incomeAt); });
+  iw.addEventListener('pointerdown', function(e){ if (I) hoverX(I, e.clientX, I.rows.length, incomeAt); });
+  iw.addEventListener('pointerleave', function(){ hideTip('#incTip'); clearHover(I, '#iHover'); });
+  $('#incSvg').addEventListener('keydown', function(e){
+    if (!I) return;
+    if (arrowKeys(e, I.rows.length, I.i, incomeAt, '#incTip', false) && e.key === 'Escape') clearHover(I, '#iHover');
+  });
+  $('#incSvg').addEventListener('focus', function(){ if (I && I.i < 0) incomeAt(I.rows.length - 1); });
+  $('#incSvg').addEventListener('blur', function(){ hideTip('#incTip'); clearHover(I, '#iHover'); });
+
+  /* ---- fan chart ---- */
+  var mw = $('#mcWrap');
+  mw.addEventListener('pointermove', function(e){ if (M) hoverX(M, e.clientX, M.n, mcAt); });
+  mw.addEventListener('pointerdown', function(e){ if (M) hoverX(M, e.clientX, M.n, mcAt); });
+  mw.addEventListener('pointerleave', function(){ hideTip('#mcTip'); clearHover(M, '#mHover'); });
+  $('#mcSvg').addEventListener('keydown', function(e){
+    if (!M) return;
+    if (arrowKeys(e, M.n, M.i, mcAt, '#mcTip', false) && e.key === 'Escape') clearHover(M, '#mHover');
+  });
+  $('#mcSvg').addEventListener('focus', function(){ if (M && M.i < 0) mcAt(M.n - 1); });
+  $('#mcSvg').addEventListener('blur', function(){ hideTip('#mcTip'); clearHover(M, '#mHover'); });
+
+  /* responsive re-render, width changes only */
+  var lastW = 0;
+  var onResize = function(){
+    var w = $('#planWrap').clientWidth;
+    if (Math.abs(w - lastW) < 2) return;
+    lastW = w;
+    ['#planTip','#ageTip','#incTip','#mcTip'].forEach(hideTip);
+    render();
+  };
+  lastW = $('#planWrap').clientWidth;
+  if (window.ResizeObserver){
+    var ro = new ResizeObserver(function(){ onResize(); });
+    ro.observe($('#planWrap'));
+  } else {
+    window.addEventListener('resize', onResize);
+  }
+  /* print on a light ground: SVG colours are baked at render time, so the theme
+     must be light before the charts are rebuilt for paper */
+  var printPrev = null;
+  window.addEventListener('beforeprint', function(){
+    ['#planTip','#ageTip','#incTip','#mcTip'].forEach(hideTip);
+    printPrev = document.documentElement.getAttribute('data-theme');
+    if (printPrev === 'dark') document.documentElement.setAttribute('data-theme', 'light');
+    render();
+  });
+  window.addEventListener('afterprint', function(){
+    if (printPrev && printPrev !== document.documentElement.getAttribute('data-theme')){
+      document.documentElement.setAttribute('data-theme', printPrev);
+      render();
+    }
+    printPrev = null;
+  });
+  window.addEventListener('hashchange', function(){
+    if (parseHash()){ syncInputs(); render(); }
+  });
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+
+})();
+</script>
+</body>
+</html>
