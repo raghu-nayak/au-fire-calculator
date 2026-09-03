@@ -79,6 +79,7 @@ indexed to inflation for every later year.
 | Super out | Preservation age 60, tax-free from a taxed source, minimum drawdown 4% rising to 14% by 95 |
 | Outside super | Distribution yield taxed as income each year and reinvested, refundable franking credits, capital growth untaxed until sold, then a 50% CGT discount at your marginal rate |
 | Age pension | From 67, assets and income (deemed) tests both applied and the lower payment wins, home exempt, homeowner and non-homeowner thresholds |
+| Returns | One expected return before fees, or a separate one for super and for outside super, each with its own fee |
 | Household | Single or couple — couple switches the pension rates and thresholds, splits investment income 50/50, and taxes each salary separately against its own caps |
 
 **Mechanics.** One pass per year, in actual dollars, in this order: earn,
@@ -112,6 +113,8 @@ lifetime tax.
   drawn from your expected return and volatility, as a percentile fan plus a
   success rate. Fixed seed, so the same inputs always give the same fan.
 - **Every year of the plan** as a table, and the same detail as CSV.
+- **Fill the cap** — one button sets the salary sacrifice to the most you can add
+  without any year going over the concessional cap.
 
 ## Things worth knowing
 
@@ -120,6 +123,13 @@ lifetime tax.
   outcome to hold has no margin in it.
 - **The success rate uses a normal distribution**, not historical sequences. It
   captures volatility and sequence risk, not fat tails or mean reversion.
+- **Separate returns move together.** Give super and outside super different
+  expected returns and a simulated year still hands both the same deviation —
+  one market, two allocations. Correlation is not a setting.
+- **The concessional cap warning watches every year, not just the first.** A
+  sacrifice sized against today's employer contributions can breach the cap a
+  decade later, because pay rises above inflation while the cap only follows
+  inflation. The chip names the year and the amount, in today's money.
 - **The age pension figure is an estimate**, not an assessment. It counts your
   super and your outside-super portfolio as assessable assets, and nothing else
   — no car, no contents, no investment property.
