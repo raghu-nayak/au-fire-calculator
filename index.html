@@ -2982,18 +2982,26 @@ function propagate(key){
   else if (AGE_FIELDS[key]) syncAges(key);
   afterChange();
 }
-/* Up and down move a field by the smallest amount worth thinking about: $500
-   for money, a year for an age, a tenth of a point for a rate. Shift makes it
-   ten of those. The step lands on a multiple of itself, so a figure typed off
-   the grid — 52,340 — snaps to 52,500 rather than carrying the odd 340 along
-   for the rest of the session. */
+/* Up and down move a field by exactly what its own slider moves, so the thumb
+   and the number can never drift apart. A range input snaps whatever you assign
+   it onto its step grid, so a half-notch nudge would leave the thumb pointing at
+   a figure the field isn't showing. Fields with no slider fall back to the
+   smallest amount worth thinking about for their kind: $500 for money, a year
+   for an age, a tenth of a point for a rate. Shift makes it ten of those.
+
+   Every slider here starts on a multiple of its own step, so landing the value
+   on a multiple of the step lands it on the slider's grid too — and a figure
+   typed off that grid, 52,340, snaps onto it rather than carrying the odd 340
+   along for the rest of the session. */
 var STEPS = { money: 500, int: 1, pct: 0.1 };
-/* A balance is a six-figure number nobody moves in $500 increments, so those
-   two step at the same $5,000 as the sliders underneath them. */
-var KEY_STEPS = { superBal: 5000, outBal: 5000 };
+function stepFor(el, key){
+  var rng = document.getElementById(key + '_r');
+  var s = rng ? parseFloat(rng.step) : NaN;
+  return isFinite(s) && s > 0 ? s : (STEPS[el.getAttribute('data-kind')] || 1);
+}
 function nudge(el, dir, big){
   var key = el.getAttribute('data-key');
-  var step = (KEY_STEPS[key] || STEPS[el.getAttribute('data-kind')] || 1) * (big ? 10 : 1);
+  var step = stepFor(el, key) * (big ? 10 : 1);
   var v = state[key] || 0, eps = step * 1e-6;
   var k = dir > 0 ? Math.floor((v + eps) / step) + 1 : Math.ceil((v - eps) / step) - 1;
   state[key] = fit(key, Math.round(k * step * 1000) / 1000);

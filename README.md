@@ -149,11 +149,13 @@ lifetime tax.
   the way a mouse does would wipe the readout the tap had just asked for.
 - Keyboard: focus any chart and use the arrow keys (up/down on the retirement-age
   chart), Home/End, Escape. Shift steps five at a time.
-- **Up and down nudge any number field** by the smallest amount worth thinking
-  about — $500 for money, a year for an age, 0.1 of a point for a rate — with
-  Shift for ten of those. The two balances step $5,000, matching their sliders.
-  The step lands on a multiple of itself, so 52,340 goes to 52,500 rather than
-  52,840.
+- **Up and down nudge any number field** by exactly what its own slider moves,
+  with Shift for ten of those, so the thumb and the number can never drift apart
+  — a range input snaps whatever you assign it onto its step grid, and a
+  half-notch nudge would leave the thumb pointing at a figure the field isn't
+  showing. A field with no slider falls back to $500, a year, or 0.1 of a point.
+  The step lands on a multiple of itself, so 96,300 goes to 97,500 rather than
+  98,800.
 
 ## Out of scope
 
@@ -170,8 +172,8 @@ Everything lives in `index.html`:
 - `AU` — every rate, threshold and cap, in one object with the income year on it.
   Updating for a new financial year is editing that block.
 - `DEFAULTS` / `LIMITS` — what the form starts at and how far each input goes.
-- `STEPS` / `KEY_STEPS` — how far one press of an arrow key moves a field, by
-  kind of field and then by name for the ones that want their own.
+- `STEPS` — how far one press of an arrow key moves a field that has no slider.
+  A field with a slider takes the slider's own `step`.
 - `:root` design tokens — the palette, for both themes. Series colours are
   stepped to clear the OKLCH lightness band, chroma floor, CVD and contrast
   checks on both chart surfaces.
