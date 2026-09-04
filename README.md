@@ -143,6 +143,9 @@ lifetime tax.
 - **Nothing leaves your browser.** State lives in the URL hash and
   `localStorage`. Reset restores the defaults but keeps your theme and display
   basis.
+- **On a phone, a chart readout stays put** when you lift your finger, until you tap
+  somewhere else — a touch pointer is destroyed on release, so hiding on `pointerleave`
+  the way a mouse does would wipe the readout the tap had just asked for.
 - Keyboard: focus any chart and use the arrow keys (up/down on the retirement-age
   chart), Home/End, Escape. Shift steps five at a time.
 
