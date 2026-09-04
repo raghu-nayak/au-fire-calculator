@@ -1472,9 +1472,9 @@ function plain(v){
 }
 function money(v){
   if (!isFinite(v)) return '—';
-  return (v < 0 ? '-' : '') + 'A$' + plain(Math.abs(v));
+  return (v < 0 ? '-' : '') + '$' + plain(Math.abs(v));
 }
-/* Compact for axes, tiles and captions: A$1.24M, A$450k, A$9,800 */
+/* Compact for axes, tiles and captions: $1.24M, $450k, $9,800 */
 function moneyC(v){
   if (!isFinite(v)) return '—';
   var neg = v < 0, a = Math.abs(v), s;
@@ -1482,7 +1482,7 @@ function moneyC(v){
   else if (a >= 1e6) s = trim(a / 1e6) + 'M';
   else if (a >= 1e4) s = trim(a / 1e3) + 'k';
   else               s = plain(a);
-  return (neg ? '-' : '') + 'A$' + s;
+  return (neg ? '-' : '') + '$' + s;
   function trim(n){
     var d = n < 10 ? 2 : n < 100 ? 1 : 0;
     return String(parseFloat(n.toFixed(d)));
