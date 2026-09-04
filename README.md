@@ -178,11 +178,35 @@ Everything lives in `index.html`:
   stepped to clear the OKLCH lightness band, chroma floor, CVD and contrast
   checks on both chart surfaces.
 - `MC_PATHS` — how many simulated markets the fan uses.
+- `APP_VERSION` — the version shown in the footer and written into the CSV
+  header. The footer also carries it as a literal so it still prints on a page
+  whose script never ran, and a test holds the two to the same figure. Bump it
+  in the same commit as the change it describes: patch for wording, styling or a
+  corrected figure, minor for a new input, mode or chart, major for a change that
+  makes an existing shared link read differently.
 
-The engine between the `engine:start` and `engine:end` markers is pure: no DOM,
-no globals, no display logic. It can be extracted and unit-tested on its own,
-which is how the tax, pension, drawdown and cash-flow identities in it were
-checked.
+## Tests
+
+The engine between the `engine:start` and `engine:end` markers is pure — no DOM,
+no globals, no display logic — so it can be pulled out of the page and run in
+node:
+
+```sh
+node test.js index.html
+```
+
+92 assertions: the resident rate scale against hand-worked figures, LITO and
+SAPTO through their tapers, the Medicare levy shade-in and its senior threshold,
+Division 293, the minimum drawdown steps, the age pension under both tests at
+once, and the projection itself — one row a year plus a closing point, super
+untouched before preservation age, retiring later leaving more, a plan that
+cannot be paid for reporting the year it failed, filling the cap never breaching
+it, and the Monte Carlo drawing the same fan from the same seed every time.
+
+One of them pins a quirk worth knowing rather than rediscovering: every
+threshold here is indexed with inflation except the $250,000 Division 293 one,
+which is true to the law — it has not moved since 2017 — and means a salary that
+merely keeps pace eventually reaches it on its own.
 
 ## Disclaimer
 

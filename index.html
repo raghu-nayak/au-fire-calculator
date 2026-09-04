@@ -910,10 +910,11 @@ footer code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fon
     <a href="https://www.servicesaustralia.gov.au/" rel="noopener">Services Australia</a>.</p>
   </section>
 
-  <!-- Hand-maintained: there is no build step to stamp it, so bump it in the same
-       commit as the change it describes. -->
+  <!-- The version is filled in from APP_VERSION at start-up; the literal here is
+       what prints and what shows if the script never ran, and a test keeps the
+       two from drifting apart. -->
   <p class="colophon">
-    <span>v1.0.0</span> &middot;
+    <span id="ver">v1.0.0</span> &middot;
     <span>&copy; 2026 Raghu Nayak</span> &middot;
     <span><a href="https://github.com/raghu-nayak/au-fire-calculator" rel="noopener">source on GitHub</a></span>
   </p>
@@ -1322,6 +1323,16 @@ function monteCarlo(p, paths){
 /* ================================================================
    4. STATE
    ================================================================ */
+/* One place says what this is and which build it is. The footer, the CSV header
+   and anything else that has to name the build all read it from here, and a test
+   holds the literal in the footer to the same figure. Hand-maintained: there is
+   no build step to stamp it, so it is bumped in the same commit as the change it
+   describes -- patch for wording, styling or a corrected figure, minor for a new
+   input, mode or chart, major for a change that makes an existing shared link
+   read differently. */
+var APP_NAME = 'Australian FIRE calculator';
+var APP_VERSION = '1.0.0';
+
 var DEFAULTS = {
   age: 38, retireAge: 55, planTo: 92, situation: 'single', homeowner: true,
   partnerSalary: 0, partnerSuper: 0,
@@ -2768,7 +2779,7 @@ function csvCell(v){
 function buildCSV(sim, early, mc){
   var p = sim.p, real = state.basis === 'real';
   var L = [];
-  L.push(['Australian FIRE calculator']);
+  L.push([APP_NAME + ' ' + APP_VERSION]);
   L.push(['Generated', new Date().toISOString().slice(0, 10)]);
   L.push(['Rates and thresholds', 'published figures for the ' + AU.fy + ' income year, indexed to inflation thereafter']);
   L.push(['Figures shown in', real ? "today's money (inflation-adjusted)" : 'actual (nominal) dollars']);
@@ -3087,6 +3098,10 @@ function init(){
   try { storedTheme = localStorage.getItem('aufire.theme'); } catch(e){}
   var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
   setTheme(storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : (prefersLight ? 'light' : 'dark'));
+
+  /* the footer carries a literal of this so it still prints on a page whose
+     script never ran; this is what makes the two agree at runtime */
+  $('#ver').textContent = 'v' + APP_VERSION;
 
   if (!parseHash()) loadStored();
   syncInputs();
