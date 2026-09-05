@@ -219,3 +219,5 @@ Verify against the [ATO](https://www.ato.gov.au/) and [Services
 Australia](https://www.servicesaustralia.gov.au/), and seek advice from a
 licensed professional before acting. The full disclaimer is in the page footer.
 
+Copyright &copy; 2026 Raghu Nayak. All rights reserved. The source is published
+here to be read and checked, not to be reused or redistributed.
